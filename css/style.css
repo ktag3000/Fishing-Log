@@ -9,6 +9,7 @@
   --slate: #5B6A6E;
   --ink: #1B2420;
   --line: rgba(27, 36, 32, 0.14);
+  --surface: #fff;
 
   --font-display: 'Fraunces', serif;
   --font-body: 'Work Sans', sans-serif;
@@ -23,6 +24,30 @@ body {
   background: var(--sand);
 }
 .hidden { display: none !important; }
+
+/* Dark theme — scoped to the signed-in app only, so the sign-in screen
+   (which is always navy/dark by design) is unaffected either way. */
+#app.dark-theme {
+  --sand: #1C2622;
+  --sand-dim: #26332D;
+  --ink: #EAE3D3;
+  --slate: #96A69D;
+  --line: rgba(234, 227, 211, 0.14);
+  --surface: #232F29;
+  --navy: #8FBBDA;
+  --moss: #83B96C;
+  --rust-dark: #E08A4F;
+}
+#app.dark-theme .log-table-wrap,
+#app.dark-theme .catch-form input,
+#app.dark-theme .catch-form select,
+#app.dark-theme .catch-form textarea {
+  color: var(--ink);
+}
+#app.dark-theme .miss-badge {
+  background: #4A2E1E;
+  color: #F0B98A;
+}
 
 button { font-family: inherit; cursor: pointer; }
 input, select, textarea { font-family: inherit; font-size: 0.95rem; }
@@ -169,7 +194,7 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 }
 
 /* ---------- App shell ---------- */
-.app { height: 100vh; display: flex; flex-direction: column; }
+.app { height: 100vh; display: flex; flex-direction: column; background: var(--sand); }
 .topbar {
   display: flex;
   align-items: center;
@@ -222,7 +247,7 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   gap: 0.8rem;
 }
 .stat-card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 2px;
   padding: 1rem;
@@ -297,7 +322,7 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   gap: 1rem;
 }
 .best-card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 2px;
   padding: 1rem;
@@ -328,7 +353,7 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   border: 1px solid var(--line);
   border-radius: 2px;
   margin-top: 1rem;
-  background: #fff;
+  background: var(--surface);
 }
 .log-table {
   border-collapse: collapse;
@@ -527,7 +552,7 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 
 /* ---------- Trips ---------- */
 .trip-card {
-  background: #fff;
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 2px;
   padding: 0.9rem 1rem;
@@ -599,7 +624,7 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   padding: 0.5rem 0.6rem;
   border: 1px solid var(--line);
   border-radius: 2px;
-  background: #fff;
+  background: var(--surface);
   color: var(--ink);
 }
 .field-row { display: flex; gap: 0.7rem; }

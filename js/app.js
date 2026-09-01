@@ -31,6 +31,28 @@ auth.onAuthStateChanged(user => {
 
 document.getElementById('helpBtn').addEventListener('click', () => openOnboarding());
 
+/* ===================== Dark mode ===================== */
+(function setupTheme() {
+  const appEl = document.getElementById('app');
+  const toggleBtn = document.getElementById('themeToggleBtn');
+
+  function apply(theme) {
+    appEl.classList.toggle('dark-theme', theme === 'dark');
+    toggleBtn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    toggleBtn.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+  }
+
+  const saved = localStorage.getItem('creel-theme') || 'light';
+  apply(saved);
+
+  toggleBtn.addEventListener('click', () => {
+    const isDark = appEl.classList.contains('dark-theme');
+    const next = isDark ? 'light' : 'dark';
+    apply(next);
+    localStorage.setItem('creel-theme', next);
+  });
+})();
+
 /* ===================== Map ===================== */
 // Called automatically by the Google Maps script tag once it loads.
 function initMap() {
