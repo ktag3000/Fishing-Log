@@ -22,11 +22,14 @@ auth.onAuthStateChanged(user => {
     app.classList.remove('hidden');
     document.getElementById('userName').textContent = user.displayName || user.email;
     loadLocations();
+    checkFirstLoginOnboarding();
   } else {
     gate.classList.remove('hidden');
     app.classList.add('hidden');
   }
 });
+
+document.getElementById('helpBtn').addEventListener('click', () => openOnboarding());
 
 /* ===================== Map ===================== */
 // Called automatically by the Google Maps script tag once it loads.
@@ -975,6 +978,83 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+/* ===================== Onboarding tutorial ===================== */
+const ONBOARDING_SLIDES = [
+  {
+    title: 'Welcome to Creel',
+    body: 'Creel is your fishing log — every spot you fish, every trip you take, and every fish you catch, all on one map.',
+  },
+  {
+    title: 'Drop pins for your spots',
+    body: 'Click anywhere on the map to add a fishing spot. Pins are colored by how many fish you\'ve caught there — check the legend in the sidebar.',
+  },
+  {
+    title: 'Log a trip',
+    body: 'Open a spot and click "Log a trip" each time you go. Record the date, water conditions, weather — and check the box if you only had a miss, no catch.',
+  },
+  {
+    title: 'Add your catches',
+    body: 'Inside each trip, click "+ Add a catch" for every fish you land: species, lure, lure color, length, weight, and notes.',
+  },
+  {
+    title: 'See your stats',
+    body: 'The Reports tab turns your history into stats — top species, top lures, top spots, catches by year, and your personal bests.',
+  },
+  {
+    title: 'Your full log, and a backup',
+    body: 'The Log tab shows everything in one spreadsheet — drag columns to reorder or resize them. Export to CSV any time, which also works as a backup of your data.',
+  },
+];
+
+let onboardingIndex = 0;
+
+async function checkFirstLoginOnboarding() {
+  try {
+    const doc = await db.collection('users').doc(currentUser.uid).get();
+    const seen = doc.exists && doc.data().hasSeenOnboarding;
+    if (!seen) openOnboarding();
+  } catch (_) {/* if this fails, just don't force the tutorial */}
+}
+
+function openOnboarding() {
+  onboardingIndex = 0;
+  renderOnboardingSlide();
+  document.getElementById('onboardingModal').classList.remove('hidden');
+}
+
+function closeOnboarding() {
+  document.getElementById('onboardingModal').classList.add('hidden');
+  db.collection('users').doc(currentUser.uid).set({ hasSeenOnboarding: true }, { merge: true }).catch(() => {});
+}
+
+function renderOnboardingSlide() {
+  const slide = ONBOARDING_SLIDES[onboardingIndex];
+  const isLast = onboardingIndex === ONBOARDING_SLIDES.length - 1;
+
+  document.getElementById('onboardingSlide').innerHTML = `
+    <h3>${escapeHtml(slide.title)}</h3>
+    <p>${escapeHtml(slide.body)}</p>
+  `;
+  document.getElementById('onboardingDots').innerHTML = ONBOARDING_SLIDES
+    .map((_, i) => `<span class="dot${i === onboardingIndex ? ' active' : ''}"></span>`)
+    .join('');
+  document.getElementById('onboardingBack').style.visibility = onboardingIndex === 0 ? 'hidden' : 'visible';
+  document.getElementById('onboardingNext').textContent = isLast ? 'Get started' : 'Next';
+}
+
+document.getElementById('onboardingSkip').addEventListener('click', closeOnboarding);
+document.getElementById('onboardingBack').addEventListener('click', () => {
+  if (onboardingIndex > 0) { onboardingIndex--; renderOnboardingSlide(); }
+});
+document.getElementById('onboardingNext').addEventListener('click', () => {
+  if (onboardingIndex < ONBOARDING_SLIDES.length - 1) {
+    onboardingIndex++;
+    renderOnboardingSlide();
+  } else {
+    closeOnboarding();
+  }
+});
 
 /* ===================== Drawer resize ===================== */
 (function setupDrawerResize() {

@@ -38,10 +38,26 @@
         <button class="nav-tab" id="navLogBtn" type="button">Log</button>
       </nav>
       <div class="topbar-right">
+        <button id="helpBtn" class="btn btn-ghost btn-icon" title="Replay tutorial" aria-label="Replay tutorial">?</button>
         <span id="userName" class="user-name"></span>
         <button id="signOutBtn" class="btn btn-ghost">Sign out</button>
       </div>
     </header>
+
+    <!-- Onboarding / welcome tutorial -->
+    <div id="onboardingModal" class="modal-overlay hidden">
+      <div class="modal-box">
+        <button id="onboardingSkip" class="modal-skip" type="button">Skip</button>
+        <div id="onboardingSlide" class="modal-slide"></div>
+        <div class="modal-footer">
+          <div class="modal-dots" id="onboardingDots"></div>
+          <div class="modal-nav">
+            <button id="onboardingBack" class="btn btn-ghost" type="button">Back</button>
+            <button id="onboardingNext" class="btn btn-primary" type="button">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div class="layout" id="mapView">
       <aside class="sidebar" id="sidebar">
@@ -194,6 +210,6 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/app.js"></script>
   <!-- Google Maps loads app.js's initMap as its callback -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBWkcu65RynLwa8HXWYMu4aQcq1CaKI7qA&callback=initMap&loading=async" async defer></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=REPLACE_WITH_YOUR_GOOGLE_MAPS_API_KEY&callback=initMap&loading=async" async defer></script>
 </body>
 </html>

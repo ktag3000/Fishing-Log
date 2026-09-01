@@ -47,6 +47,73 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   color: var(--ink);
 }
 .btn-ghost:hover { border-color: var(--slate); }
+.btn-icon {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+/* ---------- Onboarding modal ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 30, 44, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-box {
+  position: relative;
+  background: var(--sand);
+  border-radius: 3px;
+  padding: 2rem 2rem 1.5rem;
+  max-width: 420px;
+  width: 90vw;
+  box-shadow: 0 12px 40px rgba(10, 30, 44, 0.3);
+}
+.modal-skip {
+  position: absolute;
+  top: 0.9rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  color: var(--slate);
+  text-decoration: underline;
+}
+.modal-slide h3 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  margin: 0 0 0.7rem;
+}
+.modal-slide p {
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 0;
+}
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.8rem;
+}
+.modal-dots { display: flex; gap: 0.4rem; }
+.modal-dots .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sand-dim);
+  border: 1px solid var(--line);
+}
+.modal-dots .dot.active { background: var(--rust); border-color: var(--rust); }
+.modal-nav { display: flex; gap: 0.6rem; }
 
 /* ---------- Sign-in gate ---------- */
 .gate {
