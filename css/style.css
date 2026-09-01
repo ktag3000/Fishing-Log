@@ -11,6 +11,13 @@
   --line: rgba(27, 36, 32, 0.14);
   --surface: #fff;
 
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 3px rgba(15, 42, 61, 0.08), 0 1px 2px rgba(15, 42, 61, 0.06);
+  --shadow-md: 0 6px 20px rgba(15, 42, 61, 0.12), 0 2px 6px rgba(15, 42, 61, 0.08);
+  --shadow-lg: 0 16px 48px rgba(10, 30, 44, 0.22);
+
   --font-display: 'Fraunces', serif;
   --font-body: 'Work Sans', sans-serif;
 }
@@ -22,8 +29,11 @@ body {
   font-family: var(--font-body);
   color: var(--ink);
   background: var(--sand);
+  color-scheme: light;
 }
 .hidden { display: none !important; }
+
+#app.dark-theme { color-scheme: dark; }
 
 /* Dark theme — scoped to the signed-in app only, so the sign-in screen
    (which is always navy/dark by design) is unaffected either way. */
@@ -54,27 +64,28 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 
 .btn {
   border: none;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   padding: 0.65rem 1.3rem;
   font-size: 0.92rem;
   font-weight: 500;
-  transition: transform 0.08s ease, background 0.15s ease;
+  transition: transform 0.08s ease, background 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .btn:active { transform: translateY(1px); }
 .btn-primary {
   background: var(--rust);
   color: #FBF4E9;
+  box-shadow: 0 2px 10px rgba(201, 98, 45, 0.3);
 }
-.btn-primary:hover { background: var(--rust-dark); }
+.btn-primary:hover { background: var(--rust-dark); box-shadow: 0 4px 14px rgba(201, 98, 45, 0.4); }
 .btn-ghost {
   background: transparent;
   border: 1px solid var(--line);
   color: var(--ink);
 }
-.btn-ghost:hover { border-color: var(--slate); }
+.btn-ghost:hover { border-color: var(--slate); background: var(--sand-dim); }
 .btn-icon {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border-radius: 50%;
   display: inline-flex;
@@ -82,6 +93,7 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   justify-content: center;
   font-weight: 600;
 }
+.btn-icon svg { width: 17px; height: 17px; }
 
 /* ---------- Onboarding modal ---------- */
 .modal-overlay {
@@ -96,11 +108,11 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 .modal-box {
   position: relative;
   background: var(--sand);
-  border-radius: 3px;
+  border-radius: var(--radius-lg);
   padding: 2rem 2rem 1.5rem;
   max-width: 420px;
   width: 90vw;
-  box-shadow: 0 12px 40px rgba(10, 30, 44, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 .modal-skip {
   position: absolute;
@@ -207,19 +219,20 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 .topbar-right { display: flex; align-items: center; gap: 1rem; }
 .user-name { font-size: 0.88rem; color: var(--slate); }
 
-.main-nav { display: flex; gap: 0.4rem; }
+.main-nav { display: flex; gap: 1.4rem; }
 .nav-tab {
   background: none;
   border: none;
-  padding: 0.4rem 0.9rem;
+  border-bottom: 2px solid transparent;
+  padding: 0.4rem 0.1rem;
   font-size: 0.88rem;
   color: var(--slate);
-  border-radius: 2px;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 .nav-tab:hover { color: var(--ink); }
 .nav-tab.active {
   color: var(--ink);
-  background: var(--sand-dim);
+  border-bottom-color: var(--rust);
   font-weight: 600;
 }
 
@@ -249,12 +262,15 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 .stat-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 2px;
-  padding: 1rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem 1.1rem;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
+.stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
 .stat-num {
   font-family: var(--font-display);
   font-size: 1.7rem;
@@ -281,7 +297,7 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 .year-bar {
   width: 100%;
   background: var(--rust);
-  border-radius: 2px 2px 0 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
   min-height: 4px;
 }
 .year-bar-count { font-size: 0.75rem; color: var(--slate); margin-top: 0.3rem; }
@@ -324,12 +340,15 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 .best-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 2px;
-  padding: 1rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 1rem 1.1rem;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
+.best-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
 .best-label { font-size: 0.78rem; color: var(--slate); }
 .best-value {
   font-family: var(--font-display);
@@ -351,9 +370,10 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 .log-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: var(--radius);
   margin-top: 1rem;
   background: var(--surface);
+  box-shadow: var(--shadow-sm);
 }
 .log-table {
   border-collapse: collapse;
@@ -443,13 +463,14 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 
 .location-list { list-style: none; margin: 0; padding: 0; }
 .location-list li {
-  padding: 0.6rem 0.5rem;
-  border-bottom: 1px solid var(--line);
+  padding: 0.6rem 0.6rem;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 0.92rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  transition: background 0.12s ease;
 }
 .location-list li:hover { background: var(--sand-dim); }
 .location-list .count {
@@ -457,7 +478,8 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   color: var(--slate);
   background: var(--sand-dim);
   border-radius: 20px;
-  padding: 0.1rem 0.5rem;
+  padding: 0.15rem 0.55rem;
+  font-weight: 600;
 }
 
 .map-wrap { flex: 1; position: relative; }
@@ -473,20 +495,28 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   max-width: 92vw;
   background: var(--sand);
   border-left: 1px solid var(--line);
-  box-shadow: -8px 0 24px rgba(10, 30, 44, 0.12);
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   overflow-y: auto;
   padding: 1.4rem 1.4rem 2rem;
 }
 .drawer-close {
   position: absolute;
-  top: 0.8rem;
+  top: 0.9rem;
   right: 1rem;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
   background: none;
   border: none;
-  font-size: 1.6rem;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--slate);
+  transition: background 0.12s ease, color 0.12s ease;
 }
+.drawer-close:hover { background: var(--sand-dim); color: var(--ink); }
+.drawer-close svg { width: 18px; height: 18px; }
 .drawer-resize-handle {
   position: absolute;
   left: -4px;
@@ -554,10 +584,13 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 .trip-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 2px;
-  padding: 0.9rem 1rem;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 0.9rem 1.1rem;
   margin-bottom: 0.9rem;
+  transition: box-shadow 0.15s ease;
 }
+.trip-card:hover { box-shadow: var(--shadow-md); }
 .trip-card-head {
   display: flex;
   justify-content: space-between;
@@ -621,11 +654,19 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 .catch-form input,
 .catch-form select,
 .catch-form textarea {
-  padding: 0.5rem 0.6rem;
+  padding: 0.55rem 0.7rem;
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.catch-form input:focus,
+.catch-form select:focus,
+.catch-form textarea:focus {
+  outline: none;
+  border-color: var(--rust);
+  box-shadow: 0 0 0 3px rgba(201, 98, 45, 0.15);
 }
 .field-row { display: flex; gap: 0.7rem; }
 .readonly-field span {
@@ -639,13 +680,13 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 /* location name prompt */
 .new-location-form { display: flex; flex-direction: column; gap: 0.6rem; }
 .new-location-form input {
-  padding: 0.55rem 0.6rem;
+  padding: 0.55rem 0.7rem;
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
 }
 
 @media (max-width: 720px) {
   .sidebar { display: none; }
-  .drawer { width: 100vw !important; max-width: 100vw; }
+  .drawer { width: 100vw !important; max-width: 100vw; border-radius: 0; }
   .drawer-resize-handle { display: none; }
 }

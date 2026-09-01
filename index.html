@@ -38,8 +38,12 @@
         <button class="nav-tab" id="navLogBtn" type="button">Log</button>
       </nav>
       <div class="topbar-right">
-        <button id="themeToggleBtn" class="btn btn-ghost btn-icon" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
-        <button id="helpBtn" class="btn btn-ghost btn-icon" title="Replay tutorial" aria-label="Replay tutorial">?</button>
+        <button id="themeToggleBtn" class="btn btn-ghost btn-icon" title="Toggle dark mode" aria-label="Toggle dark mode">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+        <button id="helpBtn" class="btn btn-ghost btn-icon" title="Replay tutorial" aria-label="Replay tutorial">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        </button>
         <span id="userName" class="user-name"></span>
         <button id="signOutBtn" class="btn btn-ghost">Sign out</button>
       </div>
@@ -77,7 +81,9 @@
       <!-- Location / catches drawer -->
       <section id="drawer" class="drawer hidden">
         <div id="drawerResizeHandle" class="drawer-resize-handle" aria-hidden="true"></div>
-        <button id="drawerClose" class="drawer-close" aria-label="Close">&times;</button>
+        <button id="drawerClose" class="drawer-close" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
         <div id="drawerContent"></div>
       </section>
     </div>
@@ -211,6 +217,6 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/app.js"></script>
   <!-- Google Maps loads app.js's initMap as its callback -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBWkcu65RynLwa8HXWYMu4aQcq1CaKI7qA&callback=initMap&loading=async" async defer></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=REPLACE_WITH_YOUR_GOOGLE_MAPS_API_KEY&callback=initMap&loading=async" async defer></script>
 </body>
 </html>

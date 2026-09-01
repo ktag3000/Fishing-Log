@@ -36,9 +36,12 @@ document.getElementById('helpBtn').addEventListener('click', () => openOnboardin
   const appEl = document.getElementById('app');
   const toggleBtn = document.getElementById('themeToggleBtn');
 
+  const MOON_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+  const SUN_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+
   function apply(theme) {
     appEl.classList.toggle('dark-theme', theme === 'dark');
-    toggleBtn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    toggleBtn.innerHTML = theme === 'dark' ? SUN_ICON : MOON_ICON;
     toggleBtn.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
   }
 
@@ -1005,15 +1008,15 @@ function escapeHtml(str) {
 const ONBOARDING_SLIDES = [
   {
     title: 'Welcome to Creel',
-    body: 'Creel is your fishing log — every spot you fish, every trip you take, and every fish you catch, all on one map.',
+    body: 'Creel is your fishing log. Track every spot you fish, every trip you take, and every fish you catch, all on one map.',
   },
   {
     title: 'Drop pins for your spots',
-    body: 'Click anywhere on the map to add a fishing spot. Pins are colored by how many fish you\'ve caught there — check the legend in the sidebar.',
+    body: 'Click anywhere on the map to add a fishing spot. Pins are colored by how many fish you\'ve caught there, so check the legend in the sidebar.',
   },
   {
     title: 'Log a trip',
-    body: 'Open a spot and click "Log a trip" each time you go. Record the date, water conditions, weather — and check the box if you only had a miss, no catch.',
+    body: 'Open a spot and click "Log a trip" each time you go. Record the date, water conditions, and weather, and check the box if you only had a miss with no catch.',
   },
   {
     title: 'Add your catches',
@@ -1021,11 +1024,11 @@ const ONBOARDING_SLIDES = [
   },
   {
     title: 'See your stats',
-    body: 'The Reports tab turns your history into stats — top species, top lures, top spots, catches by year, and your personal bests.',
+    body: 'The Reports tab turns your history into stats: top species, top lures, top spots, catches by year, and your personal bests.',
   },
   {
     title: 'Your full log, and a backup',
-    body: 'The Log tab shows everything in one spreadsheet — drag columns to reorder or resize them. Export to CSV any time, which also works as a backup of your data.',
+    body: 'The Log tab shows everything in one spreadsheet. Drag columns to reorder or resize them, and export to CSV any time, which also works as a backup of your data.',
   },
 ];
 
