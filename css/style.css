@@ -384,6 +384,64 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   padding-bottom: 0.25rem;
 }
 
+/* ---------- Trips ---------- */
+.trip-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.9rem;
+}
+.trip-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-bottom: 0.3rem;
+}
+.trip-date { font-weight: 600; font-size: 0.92rem; }
+.trip-meta { font-size: 0.8rem; color: var(--slate); }
+.trip-card-actions { display: flex; gap: 0.7rem; flex-shrink: 0; }
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--slate);
+  font-size: 0.75rem;
+  text-decoration: underline;
+  padding: 0.2rem 0;
+}
+.link-btn:hover { color: var(--ink); }
+
+.miss-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--rust-dark);
+  background: #F7E4D6;
+  border-radius: 20px;
+  padding: 0.1rem 0.55rem;
+}
+
+.trip-catches {
+  margin-top: 0.7rem;
+  padding-left: 0.8rem;
+  border-left: 2px solid var(--sand-dim);
+}
+.trip-catches .catch-item { padding: 0.6rem 0; }
+
+.btn-small { padding: 0.4rem 0.8rem; font-size: 0.8rem; margin-top: 0.6rem; }
+
+.checkbox-field {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem !important;
+  color: var(--ink) !important;
+}
+.checkbox-field input[type="checkbox"] { width: auto; }
+
 /* ---------- Catch form ---------- */
 .catch-form { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.8rem; }
 .catch-form label {

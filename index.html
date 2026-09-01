@@ -68,40 +68,24 @@
     </section>
   </div>
 
-  <!-- Catch form template -->
-  <template id="catchFormTemplate">
-    <form id="catchForm" class="catch-form">
-      <h3>Log a catch</h3>
+  <!-- Trip form template -->
+  <template id="tripFormTemplate">
+    <form id="tripForm" class="catch-form">
+      <h3>Log a trip</h3>
 
       <div class="field-row">
         <label>Date & time
-          <input type="datetime-local" name="caughtAt" required>
+          <input type="datetime-local" name="tripDate" required>
         </label>
         <label class="readonly-field">Moon phase
-          <span id="moonPhaseOut">—</span>
+          <span id="tripMoonPhaseOut">—</span>
         </label>
       </div>
 
-      <div class="field-row">
-        <label>Species
-          <input type="text" name="species" placeholder="Largemouth bass" required>
-        </label>
-        <label>Lure / bait
-          <input type="text" name="lure" placeholder="Chatterbait">
-        </label>
-        <label>Lure color
-          <input type="text" name="lureColor" placeholder="Chartreuse">
-        </label>
-      </div>
-
-      <div class="field-row">
-        <label>Length (in)
-          <input type="number" step="0.1" name="length" placeholder="14.5">
-        </label>
-        <label>Weight (lb)
-          <input type="number" step="0.01" name="weight" placeholder="2.3">
-        </label>
-      </div>
+      <label class="checkbox-field full">
+        <input type="checkbox" name="hadMiss">
+        Had a miss (bite/strike, no catch)
+      </label>
 
       <p class="section-label">Water conditions</p>
       <div class="field-row">
@@ -139,6 +123,43 @@
           <option>Rain</option>
         </select>
       </label>
+
+      <label class="full">Trip notes
+        <textarea name="notes" rows="2" placeholder="How the day went overall..."></textarea>
+      </label>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save trip</button>
+        <button type="button" id="cancelTripForm" class="btn btn-ghost">Cancel</button>
+      </div>
+    </form>
+  </template>
+
+  <!-- Catch form template (belongs to a trip) -->
+  <template id="catchFormTemplate">
+    <form id="catchForm" class="catch-form">
+      <h3>Log a catch</h3>
+
+      <div class="field-row">
+        <label>Species
+          <input type="text" name="species" placeholder="Largemouth bass" required>
+        </label>
+        <label>Lure / bait
+          <input type="text" name="lure" placeholder="Chatterbait">
+        </label>
+        <label>Lure color
+          <input type="text" name="lureColor" placeholder="Chartreuse">
+        </label>
+      </div>
+
+      <div class="field-row">
+        <label>Length (in)
+          <input type="number" step="0.1" name="length" placeholder="14.5">
+        </label>
+        <label>Weight (lb)
+          <input type="number" step="0.01" name="weight" placeholder="2.3">
+        </label>
+      </div>
 
       <label class="full">Notes
         <textarea name="notes" rows="2" placeholder="What worked, what didn't..."></textarea>

@@ -1,7 +1,7 @@
 /* ===================== State ===================== */
 let map;
 let currentUser = null;
-let locations = {};      // id -> {id, name, lat, lng, marker}
+let locations = {};      // id -> {id, name, lat, lng, catchCount, marker}
 let activeLocationId = null;
 let pendingPinLatLng = null; // used while naming a new pin
 
@@ -170,7 +170,7 @@ function promptNewLocation(lat, lng) {
   });
 }
 
-/* ===================== Drawer: location detail + catches ===================== */
+/* ===================== Drawer: location detail + trips ===================== */
 document.getElementById('drawerClose').addEventListener('click', closeDrawer);
 
 function closeDrawer() {
@@ -186,82 +186,237 @@ function openLocation(locId) {
   content.innerHTML = `
     <h3>${escapeHtml(loc.name)}</h3>
     <div class="form-actions" style="margin-bottom:0.5rem;">
-      <button id="logCatchBtn" class="btn btn-primary">Log a catch</button>
+      <button id="logTripBtn" class="btn btn-primary">Log a trip</button>
       <button id="deleteLocationBtn" class="btn btn-ghost">Delete spot</button>
     </div>
-    <div id="catchList">Loading catches…</div>
+    <div id="tripList">Loading trips…</div>
   `;
   drawer.classList.remove('hidden');
 
-  document.getElementById('logCatchBtn').addEventListener('click', () => showCatchForm(locId));
+  document.getElementById('logTripBtn').addEventListener('click', () => showTripForm(locId));
   document.getElementById('deleteLocationBtn').addEventListener('click', () => deleteLocation(locId));
 
-  loadCatches(locId);
+  loadTrips(locId);
+  reconcileLocationCatchCount(locId);
 }
 
 async function deleteLocation(locId) {
-  if (!confirm('Delete this spot and all its logged catches? This can\'t be undone.')) return;
+  if (!confirm('Delete this spot and all its trips and catches? This can\'t be undone.')) return;
   const catchesSnap = await db.collection('users').doc(currentUser.uid).collection('catches')
+    .where('locationId', '==', locId).get();
+  const tripsSnap = await db.collection('users').doc(currentUser.uid).collection('trips')
     .where('locationId', '==', locId).get();
   const batch = db.batch();
   catchesSnap.forEach(doc => batch.delete(doc.ref));
+  tripsSnap.forEach(doc => batch.delete(doc.ref));
   batch.delete(db.collection('users').doc(currentUser.uid).collection('locations').doc(locId));
   await batch.commit();
   closeDrawer();
 }
 
-function loadCatches(locId) {
-  db.collection('users').doc(currentUser.uid).collection('catches')
+// Keeps a location's stored catchCount in sync with the real number of catch
+// docs at that location (covers spots created before catchCount existed, or drift).
+async function reconcileLocationCatchCount(locId) {
+  const snap = await db.collection('users').doc(currentUser.uid).collection('catches')
+    .where('locationId', '==', locId).get();
+  const actualCount = snap.size;
+  const loc = locations[locId];
+  if (loc && (loc.catchCount || 0) !== actualCount) {
+    db.collection('users').doc(currentUser.uid).collection('locations').doc(locId)
+      .update({ catchCount: actualCount })
+      .catch(() => {/* best effort */});
+  }
+}
+
+/* ===================== Trips ===================== */
+function loadTrips(locId) {
+  db.collection('users').doc(currentUser.uid).collection('trips')
     .where('locationId', '==', locId)
-    .orderBy('caughtAt', 'desc')
     .onSnapshot(snap => {
       if (activeLocationId !== locId) return; // drawer moved on
-      const listEl = document.getElementById('catchList');
+      const listEl = document.getElementById('tripList');
       if (!listEl) return;
       if (snap.empty) {
-        listEl.innerHTML = '<p class="hint">No catches logged here yet.</p>';
+        listEl.innerHTML = '<p class="hint">No trips logged here yet.</p>';
         return;
       }
+      // sort client-side, newest first — avoids needing a composite index
+      const trips = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.date || 0) - (a.date || 0));
+
       listEl.innerHTML = '';
-      snap.forEach(doc => {
-        const c = doc.data();
+      trips.forEach(trip => {
+        const card = document.createElement('div');
+        card.className = 'trip-card';
+        const when = trip.date ? new Date(trip.date) : null;
+        card.innerHTML = `
+          <div class="trip-card-head">
+            <div>
+              <span class="trip-date">${when ? when.toLocaleString() : 'Undated trip'}</span>
+              ${trip.moonPhase ? `<span class="trip-meta"> · ${trip.moonPhase}</span>` : ''}
+              ${trip.hadMiss ? '<span class="miss-badge">Had a miss</span>' : ''}
+            </div>
+            <div class="trip-card-actions">
+              <button class="link-btn trip-edit">Edit</button>
+              <button class="link-btn trip-delete">Delete</button>
+            </div>
+          </div>
+          ${(trip.waterTemp || trip.clarity || trip.waterNotes) ? `<div class="catch-meta">Water: ${[trip.waterTemp ? trip.waterTemp + '°F' : '', trip.clarity, trip.waterNotes].filter(Boolean).join(' · ')}</div>` : ''}
+          ${(trip.airTemp || trip.wind || trip.sky) ? `<div class="catch-meta">Weather: ${[trip.airTemp ? trip.airTemp + '°F' : '', trip.wind, trip.sky].filter(Boolean).join(' · ')}</div>` : ''}
+          ${trip.notes ? `<div class="catch-notes">${escapeHtml(trip.notes)}</div>` : ''}
+          <div class="trip-catches" id="trip-catches-${trip.id}">Loading catches…</div>
+          <button class="btn btn-ghost btn-small add-catch-btn">+ Add a catch</button>
+        `;
+        card.querySelector('.trip-edit').addEventListener('click', () => showTripForm(locId, trip));
+        card.querySelector('.trip-delete').addEventListener('click', () => deleteTrip(trip.id, locId));
+        card.querySelector('.add-catch-btn').addEventListener('click', () => showCatchForm(locId, trip.id));
+        listEl.appendChild(card);
+
+        loadCatchesForTrip(trip.id, locId);
+      });
+    });
+}
+
+async function deleteTrip(tripId, locId) {
+  if (!confirm('Delete this trip and all catches logged under it? This can\'t be undone.')) return;
+  const catchesSnap = await db.collection('users').doc(currentUser.uid).collection('catches')
+    .where('tripId', '==', tripId).get();
+  const batch = db.batch();
+  catchesSnap.forEach(doc => batch.delete(doc.ref));
+  batch.delete(db.collection('users').doc(currentUser.uid).collection('trips').doc(tripId));
+  await batch.commit();
+  // catchCount decreases by however many catches were under this trip
+  if (catchesSnap.size > 0) {
+    await db.collection('users').doc(currentUser.uid).collection('locations').doc(locId).update({
+      catchCount: firebase.firestore.FieldValue.increment(-catchesSnap.size),
+    });
+  }
+}
+
+function loadCatchesForTrip(tripId, locId) {
+  db.collection('users').doc(currentUser.uid).collection('catches')
+    .where('tripId', '==', tripId)
+    .onSnapshot(snap => {
+      const el = document.getElementById(`trip-catches-${tripId}`);
+      if (!el) return; // trip card no longer rendered
+      if (snap.empty) {
+        el.innerHTML = '<p class="hint">No catches logged on this trip yet.</p>';
+        return;
+      }
+      const catchDocs = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.caughtAt || 0) - (a.caughtAt || 0));
+
+      el.innerHTML = '';
+      catchDocs.forEach(c => {
         const div = document.createElement('div');
         div.className = 'catch-item';
         const when = c.caughtAt ? new Date(c.caughtAt) : null;
         div.innerHTML = `
           <div class="catch-species">${escapeHtml(c.species || 'Unknown species')}</div>
           <div class="catch-meta">
-            ${when ? when.toLocaleString() : ''}
+            ${when ? when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
             ${c.length ? ' · ' + c.length + '"' : ''}
             ${c.weight ? ' · ' + c.weight + ' lb' : ''}
-            ${c.moonPhase ? ' · ' + c.moonPhase : ''}
           </div>
           ${(c.lure || c.lureColor) ? `<div class="catch-meta">Lure: ${[c.lure, c.lureColor].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
-          ${(c.waterTemp || c.clarity || c.waterNotes) ? `<div class="catch-meta">Water: ${[c.waterTemp ? c.waterTemp + '°F' : '', c.clarity, c.waterNotes].filter(Boolean).join(' · ')}</div>` : ''}
-          ${(c.airTemp || c.wind || c.sky) ? `<div class="catch-meta">Weather: ${[c.airTemp ? c.airTemp + '°F' : '', c.wind, c.sky].filter(Boolean).join(' · ')}</div>` : ''}
           ${c.notes ? `<div class="catch-notes">${escapeHtml(c.notes)}</div>` : ''}
           <div class="catch-actions">
-            <button class="catch-edit" data-id="${doc.id}">Edit</button>
-            <button class="catch-delete" data-id="${doc.id}">Delete</button>
+            <button class="catch-edit" data-id="${c.id}">Edit</button>
+            <button class="catch-delete" data-id="${c.id}">Delete</button>
           </div>
         `;
-        div.querySelector('.catch-edit').addEventListener('click', () => showCatchForm(locId, { id: doc.id, ...c }));
-        div.querySelector('.catch-delete').addEventListener('click', () => deleteCatch(doc.id, locId));
-        listEl.appendChild(div);
+        div.querySelector('.catch-edit').addEventListener('click', () => showCatchForm(locId, tripId, c));
+        div.querySelector('.catch-delete').addEventListener('click', () => deleteCatch(c.id, locId));
+        el.appendChild(div);
       });
-
-      // Self-heal: keep the location's stored catchCount in sync with reality.
-      // Covers spots created before catchCount existed, or any drift.
-      const actualCount = snap.size;
-      const loc = locations[locId];
-      if (loc && (loc.catchCount || 0) !== actualCount) {
-        db.collection('users').doc(currentUser.uid).collection('locations').doc(locId)
-          .update({ catchCount: actualCount })
-          .catch(() => {/* best effort */});
-      }
     });
 }
 
+/* ===================== Trip form ===================== */
+function showTripForm(locId, existingTrip) {
+  const isEdit = !!existingTrip;
+  const drawer = document.getElementById('drawer');
+  const content = document.getElementById('drawerContent');
+  const tpl = document.getElementById('tripFormTemplate').content.cloneNode(true);
+  content.innerHTML = '';
+  content.appendChild(tpl);
+  drawer.classList.remove('hidden');
+
+  const form = document.getElementById('tripForm');
+  const heading = form.querySelector('h3');
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const dateInput = form.querySelector('[name="tripDate"]');
+  const moonOut = document.getElementById('tripMoonPhaseOut');
+
+  if (isEdit) {
+    heading.textContent = 'Edit trip';
+    submitBtn.textContent = 'Save changes';
+  }
+
+  const setDate = (ms) => {
+    const d = ms ? new Date(ms) : new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    dateInput.value = d.toISOString().slice(0, 16);
+    moonOut.textContent = moonPhaseName(new Date(dateInput.value));
+  };
+  setDate(isEdit ? existingTrip.date : null);
+
+  dateInput.addEventListener('change', () => {
+    moonOut.textContent = dateInput.value ? moonPhaseName(new Date(dateInput.value)) : '—';
+  });
+
+  if (isEdit) {
+    const fields = ['waterTemp', 'clarity', 'waterNotes', 'airTemp', 'wind', 'sky', 'notes'];
+    fields.forEach(name => {
+      const el = form.querySelector(`[name="${name}"]`);
+      if (el && existingTrip[name] !== undefined && existingTrip[name] !== null) el.value = existingTrip[name];
+    });
+    form.querySelector('[name="hadMiss"]').checked = !!existingTrip.hadMiss;
+  }
+
+  document.getElementById('cancelTripForm').addEventListener('click', () => openLocation(locId));
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving…';
+
+    const fd = new FormData(form);
+    const tripDate = new Date(fd.get('tripDate'));
+
+    const tripData = {
+      locationId: locId,
+      date: tripDate.getTime(),
+      moonPhase: moonPhaseName(tripDate),
+      hadMiss: fd.get('hadMiss') === 'on',
+      waterTemp: fd.get('waterTemp') ? Number(fd.get('waterTemp')) : null,
+      clarity: fd.get('clarity') || '',
+      waterNotes: fd.get('waterNotes') || '',
+      airTemp: fd.get('airTemp') ? Number(fd.get('airTemp')) : null,
+      wind: fd.get('wind') || '',
+      sky: fd.get('sky') || '',
+      notes: fd.get('notes') || '',
+    };
+
+    try {
+      if (isEdit) {
+        await db.collection('users').doc(currentUser.uid).collection('trips').doc(existingTrip.id).update(tripData);
+      } else {
+        tripData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        await db.collection('users').doc(currentUser.uid).collection('trips').add(tripData);
+      }
+      openLocation(locId);
+    } catch (err) {
+      alert('Could not save trip: ' + err.message);
+      submitBtn.disabled = false;
+      submitBtn.textContent = isEdit ? 'Save changes' : 'Save trip';
+    }
+  });
+}
+
+/* ===================== Catch form (belongs to a trip) ===================== */
 async function deleteCatch(catchId, locId) {
   if (!confirm('Delete this catch?')) return;
   await db.collection('users').doc(currentUser.uid).collection('catches').doc(catchId).delete();
@@ -270,51 +425,26 @@ async function deleteCatch(catchId, locId) {
   });
 }
 
-/* ===================== Catch form ===================== */
-function showCatchForm(locId, existingCatch) {
+function showCatchForm(locId, tripId, existingCatch) {
   const isEdit = !!existingCatch;
+  const drawer = document.getElementById('drawer');
   const content = document.getElementById('drawerContent');
   const tpl = document.getElementById('catchFormTemplate').content.cloneNode(true);
   content.innerHTML = '';
   content.appendChild(tpl);
+  drawer.classList.remove('hidden');
 
   const form = document.getElementById('catchForm');
   const heading = form.querySelector('h3');
   const submitBtn = form.querySelector('button[type="submit"]');
-  const dateInput = form.querySelector('[name="caughtAt"]');
-  const moonOut = document.getElementById('moonPhaseOut');
 
   if (isEdit) {
     heading.textContent = 'Edit catch';
     submitBtn.textContent = 'Save changes';
-  }
-
-  if (isEdit && existingCatch.caughtAt) {
-    // pre-fill date/time from the stored timestamp, in local time
-    const d = new Date(existingCatch.caughtAt);
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    dateInput.value = d.toISOString().slice(0, 16);
-  } else {
-    // default to now, local time
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    dateInput.value = now.toISOString().slice(0, 16);
-  }
-  moonOut.textContent = moonPhaseName(new Date(dateInput.value));
-
-  dateInput.addEventListener('change', () => {
-    moonOut.textContent = dateInput.value ? moonPhaseName(new Date(dateInput.value)) : '—';
-  });
-
-  // pre-fill the rest of the fields when editing
-  if (isEdit) {
-    const textFields = ['species', 'lure', 'lureColor', 'length', 'weight', 'waterTemp',
-      'clarity', 'waterNotes', 'airTemp', 'wind', 'sky', 'notes'];
-    textFields.forEach(name => {
+    const fields = ['species', 'lure', 'lureColor', 'length', 'weight', 'notes'];
+    fields.forEach(name => {
       const el = form.querySelector(`[name="${name}"]`);
-      if (el && existingCatch[name] !== undefined && existingCatch[name] !== null) {
-        el.value = existingCatch[name];
-      }
+      if (el && existingCatch[name] !== undefined && existingCatch[name] !== null) el.value = existingCatch[name];
     });
   }
 
@@ -323,33 +453,32 @@ function showCatchForm(locId, existingCatch) {
   form.addEventListener('submit', async e => {
     e.preventDefault();
     submitBtn.disabled = true;
-    submitBtn.textContent = isEdit ? 'Saving…' : 'Saving…';
+    submitBtn.textContent = 'Saving…';
 
     const fd = new FormData(form);
-    const caughtAtDate = new Date(fd.get('caughtAt'));
 
     const catchData = {
       locationId: locId,
+      tripId: tripId,
       species: fd.get('species') || '',
       lure: fd.get('lure') || '',
       lureColor: fd.get('lureColor') || '',
       length: fd.get('length') ? Number(fd.get('length')) : null,
       weight: fd.get('weight') ? Number(fd.get('weight')) : null,
-      waterTemp: fd.get('waterTemp') ? Number(fd.get('waterTemp')) : null,
-      clarity: fd.get('clarity') || '',
-      waterNotes: fd.get('waterNotes') || '',
-      airTemp: fd.get('airTemp') ? Number(fd.get('airTemp')) : null,
-      wind: fd.get('wind') || '',
-      sky: fd.get('sky') || '',
       notes: fd.get('notes') || '',
-      caughtAt: caughtAtDate.getTime(),
-      moonPhase: moonPhaseName(caughtAtDate),
     };
 
     try {
       if (isEdit) {
         await db.collection('users').doc(currentUser.uid).collection('catches').doc(existingCatch.id).update(catchData);
       } else {
+        // new catches default to the trip's date/time for caughtAt
+        let caughtAtMs = Date.now();
+        try {
+          const tripDoc = await db.collection('users').doc(currentUser.uid).collection('trips').doc(tripId).get();
+          if (tripDoc.exists && tripDoc.data().date) caughtAtMs = tripDoc.data().date;
+        } catch (_) {/* fall back to now */}
+        catchData.caughtAt = caughtAtMs;
         catchData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         await db.collection('users').doc(currentUser.uid).collection('catches').add(catchData);
         await db.collection('users').doc(currentUser.uid).collection('locations').doc(locId).update({
@@ -363,30 +492,6 @@ function showCatchForm(locId, existingCatch) {
       submitBtn.textContent = isEdit ? 'Save changes' : 'Save catch';
     }
   });
-}
-
-/* ===================== Moon phase ===================== */
-// Simple approximation good enough for a fishing log: returns a phase name for a given date.
-function moonPhaseName(date) {
-  const synodicMonth = 29.53058867;
-  const knownNewMoon = Date.UTC(2000, 0, 6, 18, 14); // Jan 6 2000 new moon
-  const diffDays = (date.getTime() - knownNewMoon) / 86400000;
-  let phase = (diffDays % synodicMonth) / synodicMonth;
-  if (phase < 0) phase += 1;
-
-  const names = [
-    'New moon', 'Waxing crescent', 'First quarter', 'Waxing gibbous',
-    'Full moon', 'Waning gibbous', 'Last quarter', 'Waning crescent',
-  ];
-  const index = Math.round(phase * 8) % 8;
-  return names[index];
-}
-
-/* ===================== Utils ===================== */
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
 }
 
 /* ===================== Nav: Map / Reports ===================== */
@@ -540,4 +645,28 @@ function renderBarList(entries) {
       `).join('')}
     </ul>
   `;
+}
+
+/* ===================== Moon phase ===================== */
+// Simple approximation good enough for a fishing log: returns a phase name for a given date.
+function moonPhaseName(date) {
+  const synodicMonth = 29.53058867;
+  const knownNewMoon = Date.UTC(2000, 0, 6, 18, 14); // Jan 6 2000 new moon
+  const diffDays = (date.getTime() - knownNewMoon) / 86400000;
+  let phase = (diffDays % synodicMonth) / synodicMonth;
+  if (phase < 0) phase += 1;
+
+  const names = [
+    'New moon', 'Waxing crescent', 'First quarter', 'Waxing gibbous',
+    'Full moon', 'Waning gibbous', 'Last quarter', 'Waning crescent',
+  ];
+  const index = Math.round(phase * 8) % 8;
+  return names[index];
+}
+
+/* ===================== Utils ===================== */
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
