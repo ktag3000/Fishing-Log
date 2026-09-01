@@ -254,6 +254,7 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   margin-bottom: 0.3rem;
 }
 .log-toolbar h2 { margin: 0; }
+.log-toolbar-actions { display: flex; gap: 0.6rem; align-items: center; }
 .log-inner { max-width: 100%; }
 .log-table-wrap {
   overflow-x: auto;
@@ -264,15 +265,19 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 }
 .log-table {
   border-collapse: collapse;
+  table-layout: fixed;
   width: 100%;
   font-size: 0.8rem;
-  white-space: nowrap;
 }
 .log-table th,
 .log-table td {
   padding: 0.5rem 0.7rem;
   border-bottom: 1px solid var(--line);
+  border-right: 1px solid var(--line);
   text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .log-table thead th {
   position: sticky;
@@ -280,8 +285,25 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   background: var(--sand-dim);
   font-weight: 600;
   color: var(--ink);
+  cursor: grab;
+  user-select: none;
 }
+.log-table thead th.dragging-col { opacity: 0.4; }
+.log-table thead th.drop-target { box-shadow: inset 3px 0 0 var(--rust); }
 .log-table tbody tr:hover { background: var(--sand); }
+.log-table td.has-catch-cell { background: #B7E4C7; }
+.log-table tbody tr:hover td.has-catch-cell { background: #A3D9B5; }
+
+.col-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+  z-index: 2;
+}
+.col-resize-handle:hover { background: var(--rust); opacity: 0.5; }
 
 .layout {
   flex: 1;
