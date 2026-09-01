@@ -203,12 +203,13 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   color: var(--slate);
   margin: 0.15rem 0 0.4rem;
 }
-.catch-item img {
-  width: 100%;
-  border-radius: 2px;
-  margin-top: 0.5rem;
-}
 .catch-item .catch-notes { font-size: 0.88rem; margin-top: 0.35rem; }
+.catch-actions {
+  display: flex;
+  gap: 0.9rem;
+  margin-top: 0.4rem;
+}
+.catch-edit,
 .catch-delete {
   background: none;
   border: none;
@@ -217,6 +218,8 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   text-decoration: underline;
   padding: 0.3rem 0;
 }
+.catch-edit:hover,
+.catch-delete:hover { color: var(--ink); }
 
 .section-label {
   text-transform: none;
