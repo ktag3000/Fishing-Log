@@ -336,6 +336,21 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   line-height: 1;
   color: var(--slate);
 }
+.drawer-resize-handle {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 5;
+  background: transparent;
+}
+.drawer-resize-handle:hover,
+.drawer-resize-handle.dragging {
+  background: var(--rust);
+  opacity: 0.4;
+}
 .drawer h3 {
   font-family: var(--font-display);
   font-size: 1.3rem;
@@ -480,5 +495,6 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 
 @media (max-width: 720px) {
   .sidebar { display: none; }
-  .drawer { width: 100vw; max-width: 100vw; }
+  .drawer { width: 100vw !important; max-width: 100vw; }
+  .drawer-resize-handle { display: none; }
 }

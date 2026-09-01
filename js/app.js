@@ -670,3 +670,49 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+/* ===================== Drawer resize ===================== */
+(function setupDrawerResize() {
+  const drawer = document.getElementById('drawer');
+  const handle = document.getElementById('drawerResizeHandle');
+  if (!drawer || !handle) return;
+
+  const MIN_WIDTH = 320;
+  const MAX_WIDTH_RATIO = 0.9; // don't let it swallow the whole screen
+
+  // restore a previously chosen width, if any
+  const saved = parseInt(localStorage.getItem('creel-drawer-width'), 10);
+  if (saved) drawer.style.width = saved + 'px';
+
+  let dragging = false;
+
+  function applyWidth(clientX) {
+    const maxWidth = window.innerWidth * MAX_WIDTH_RATIO;
+    const newWidth = Math.max(MIN_WIDTH, Math.min(window.innerWidth - clientX, maxWidth));
+    drawer.style.width = newWidth + 'px';
+  }
+
+  function startDrag(clientX) {
+    dragging = true;
+    handle.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    applyWidth(clientX);
+  }
+
+  function endDrag() {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    const width = parseInt(drawer.style.width, 10);
+    if (width) localStorage.setItem('creel-drawer-width', width);
+  }
+
+  handle.addEventListener('mousedown', e => { e.preventDefault(); startDrag(e.clientX); });
+  window.addEventListener('mousemove', e => { if (dragging) applyWidth(e.clientX); });
+  window.addEventListener('mouseup', endDrag);
+
+  handle.addEventListener('touchstart', e => startDrag(e.touches[0].clientX), { passive: true });
+  window.addEventListener('touchmove', e => { if (dragging) applyWidth(e.touches[0].clientX); }, { passive: true });
+  window.addEventListener('touchend', endDrag);
+})();
