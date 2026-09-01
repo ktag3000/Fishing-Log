@@ -209,8 +209,12 @@ function loadCatches(locId) {
           ${(c.waterTemp || c.clarity || c.waterNotes) ? `<div class="catch-meta">Water: ${[c.waterTemp ? c.waterTemp + '°F' : '', c.clarity, c.waterNotes].filter(Boolean).join(' · ')}</div>` : ''}
           ${(c.airTemp || c.wind || c.sky) ? `<div class="catch-meta">Weather: ${[c.airTemp ? c.airTemp + '°F' : '', c.wind, c.sky].filter(Boolean).join(' · ')}</div>` : ''}
           ${c.notes ? `<div class="catch-notes">${escapeHtml(c.notes)}</div>` : ''}
-          <button class="catch-delete" data-id="${doc.id}">Delete</button>
+          <div class="catch-actions">
+            <button class="catch-edit" data-id="${doc.id}">Edit</button>
+            <button class="catch-delete" data-id="${doc.id}">Delete</button>
+          </div>
         `;
+        div.querySelector('.catch-edit').addEventListener('click', () => showCatchForm(locId, { id: doc.id, ...c }));
         div.querySelector('.catch-delete').addEventListener('click', () => deleteCatch(doc.id));
         listEl.appendChild(div);
       });
@@ -223,33 +227,59 @@ async function deleteCatch(catchId) {
 }
 
 /* ===================== Catch form ===================== */
-function showCatchForm(locId) {
+function showCatchForm(locId, existingCatch) {
+  const isEdit = !!existingCatch;
   const content = document.getElementById('drawerContent');
   const tpl = document.getElementById('catchFormTemplate').content.cloneNode(true);
   content.innerHTML = '';
   content.appendChild(tpl);
 
   const form = document.getElementById('catchForm');
+  const heading = form.querySelector('h3');
+  const submitBtn = form.querySelector('button[type="submit"]');
   const dateInput = form.querySelector('[name="caughtAt"]');
   const moonOut = document.getElementById('moonPhaseOut');
 
-  // default to now, local time
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  dateInput.value = now.toISOString().slice(0, 16);
+  if (isEdit) {
+    heading.textContent = 'Edit catch';
+    submitBtn.textContent = 'Save changes';
+  }
+
+  if (isEdit && existingCatch.caughtAt) {
+    // pre-fill date/time from the stored timestamp, in local time
+    const d = new Date(existingCatch.caughtAt);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    dateInput.value = d.toISOString().slice(0, 16);
+  } else {
+    // default to now, local time
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    dateInput.value = now.toISOString().slice(0, 16);
+  }
   moonOut.textContent = moonPhaseName(new Date(dateInput.value));
 
   dateInput.addEventListener('change', () => {
     moonOut.textContent = dateInput.value ? moonPhaseName(new Date(dateInput.value)) : '—';
   });
 
+  // pre-fill the rest of the fields when editing
+  if (isEdit) {
+    const textFields = ['species', 'lure', 'lureColor', 'length', 'weight', 'waterTemp',
+      'clarity', 'waterNotes', 'airTemp', 'wind', 'sky', 'notes'];
+    textFields.forEach(name => {
+      const el = form.querySelector(`[name="${name}"]`);
+      if (el && existingCatch[name] !== undefined && existingCatch[name] !== null) {
+        el.value = existingCatch[name];
+      }
+    });
+  }
+
   document.getElementById('cancelCatchForm').addEventListener('click', () => openLocation(locId));
 
   form.addEventListener('submit', async e => {
     e.preventDefault();
-    const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving…';
+    submitBtn.textContent = isEdit ? 'Saving…' : 'Saving…';
 
     const fd = new FormData(form);
     const caughtAtDate = new Date(fd.get('caughtAt'));
@@ -270,16 +300,20 @@ function showCatchForm(locId) {
       notes: fd.get('notes') || '',
       caughtAt: caughtAtDate.getTime(),
       moonPhase: moonPhaseName(caughtAtDate),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     };
 
     try {
-      await db.collection('users').doc(currentUser.uid).collection('catches').add(catchData);
+      if (isEdit) {
+        await db.collection('users').doc(currentUser.uid).collection('catches').doc(existingCatch.id).update(catchData);
+      } else {
+        catchData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        await db.collection('users').doc(currentUser.uid).collection('catches').add(catchData);
+      }
       openLocation(locId);
     } catch (err) {
       alert('Could not save catch: ' + err.message);
       submitBtn.disabled = false;
-      submitBtn.textContent = 'Save catch';
+      submitBtn.textContent = isEdit ? 'Save changes' : 'Save catch';
     }
   });
 }
