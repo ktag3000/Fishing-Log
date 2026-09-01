@@ -568,27 +568,27 @@ function switchView(view) {
 // Single source of truth for columns, shared by the on-screen table and the CSV
 // export so they never drift out of sync.
 const LOG_COLUMNS = [
-  { key: 'locationName', label: 'Location' },
-  { key: 'tripDate',     label: 'Trip date' },
-  { key: 'tripStart',    label: 'Start time' },
-  { key: 'tripEnd',      label: 'End time' },
-  { key: 'duration',     label: 'Duration' },
-  { key: 'moonPhase',    label: 'Moon phase' },
-  { key: 'hadMiss',      label: 'Had a miss' },
-  { key: 'waterTemp',    label: 'Water temp (°F)' },
-  { key: 'clarity',      label: 'Water clarity' },
-  { key: 'waterNotes',   label: 'Water notes' },
-  { key: 'airTemp',      label: 'Air temp (°F)' },
-  { key: 'wind',         label: 'Wind' },
-  { key: 'sky',          label: 'Sky' },
-  { key: 'tripNotes',    label: 'Trip notes' },
-  { key: 'species',      label: 'Species' },
-  { key: 'lure',         label: 'Lure' },
-  { key: 'lureColor',    label: 'Lure color' },
-  { key: 'length',       label: 'Length (in)' },
-  { key: 'weight',       label: 'Weight (lb)' },
-  { key: 'catchTime',    label: 'Catch time' },
-  { key: 'catchNotes',   label: 'Catch notes' },
+  { key: 'locationName', label: 'Location',          width: 150 },
+  { key: 'tripDate',     label: 'Trip date',          width: 110 },
+  { key: 'tripStart',    label: 'Start time',         width: 100 },
+  { key: 'tripEnd',      label: 'End time',           width: 100 },
+  { key: 'duration',     label: 'Duration',           width: 90 },
+  { key: 'moonPhase',    label: 'Moon phase',         width: 130 },
+  { key: 'hadMiss',      label: 'Had a miss',         width: 100 },
+  { key: 'waterTemp',    label: 'Water temp (°F)',    width: 120 },
+  { key: 'clarity',      label: 'Water clarity',      width: 110 },
+  { key: 'waterNotes',   label: 'Water notes',        width: 200 },
+  { key: 'airTemp',      label: 'Air temp (°F)',      width: 110 },
+  { key: 'wind',         label: 'Wind',                width: 110 },
+  { key: 'sky',          label: 'Sky',                 width: 120 },
+  { key: 'tripNotes',    label: 'Trip notes',         width: 200 },
+  { key: 'species',      label: 'Species',             width: 140 },
+  { key: 'lure',         label: 'Lure',                width: 130 },
+  { key: 'lureColor',    label: 'Lure color',         width: 120 },
+  { key: 'length',       label: 'Length (in)',        width: 100 },
+  { key: 'weight',       label: 'Weight (lb)',        width: 100 },
+  { key: 'catchTime',    label: 'Catch time',         width: 100 },
+  { key: 'catchNotes',   label: 'Catch notes',        width: 200 },
 ];
 
 let currentLogRows = [];
@@ -668,24 +668,134 @@ async function loadLog() {
   renderLogTable(rows);
 }
 
+/* ---- column order & width persistence ---- */
+function getLogColumnOrder() {
+  const allKeys = LOG_COLUMNS.map(c => c.key);
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem('creel-log-column-order')); } catch (_) { saved = null; }
+  if (!Array.isArray(saved)) return allKeys;
+  const filtered = saved.filter(k => allKeys.includes(k));
+  const missing = allKeys.filter(k => !filtered.includes(k));
+  return [...filtered, ...missing]; // any newly-added columns land at the end
+}
+function saveLogColumnOrder(order) {
+  localStorage.setItem('creel-log-column-order', JSON.stringify(order));
+}
+function getLogColumnWidths() {
+  try { return JSON.parse(localStorage.getItem('creel-log-column-widths')) || {}; } catch (_) { return {}; }
+}
+function saveLogColumnWidths(widths) {
+  localStorage.setItem('creel-log-column-widths', JSON.stringify(widths));
+}
+
 function renderLogTable(rows) {
   const el = document.getElementById('logContent');
+  const colsByKey = Object.fromEntries(LOG_COLUMNS.map(c => [c.key, c]));
+  const order = getLogColumnOrder();
+  const widths = getLogColumnWidths();
+  const orderedCols = order.map(k => colsByKey[k]);
+
   el.innerHTML = `
     <div class="log-toolbar">
       <h2>Full log</h2>
-      <button id="exportCsvBtn" class="btn btn-primary">Export CSV</button>
+      <div class="log-toolbar-actions">
+        <button id="resetColumnsBtn" class="btn btn-ghost btn-small">Reset columns</button>
+        <button id="exportCsvBtn" class="btn btn-primary">Export CSV</button>
+      </div>
     </div>
-    <p class="hint">${rows.length} row${rows.length === 1 ? '' : 's'} · every trip and catch you've logged, in one place. Export doubles as a backup.</p>
+    <p class="hint">${rows.length} row${rows.length === 1 ? '' : 's'} · drag a column header to reorder it, drag its right edge to resize. Rows with a catch are highlighted. Export doubles as a backup.</p>
     <div class="log-table-wrap">
-      <table class="log-table">
-        <thead><tr>${LOG_COLUMNS.map(c => `<th>${escapeHtml(c.label)}</th>`).join('')}</tr></thead>
+      <table class="log-table" id="logTable">
+        <colgroup>
+          ${orderedCols.map(c => `<col data-key="${c.key}" style="width:${widths[c.key] || c.width}px">`).join('')}
+        </colgroup>
+        <thead>
+          <tr>
+            ${orderedCols.map(c => `
+              <th draggable="true" data-key="${c.key}">
+                <span class="th-label">${escapeHtml(c.label)}</span>
+                <span class="col-resize-handle" data-key="${c.key}"></span>
+              </th>
+            `).join('')}
+          </tr>
+        </thead>
         <tbody>
-          ${rows.map(row => `<tr>${LOG_COLUMNS.map(c => `<td>${escapeHtml(String(row[c.key] ?? ''))}</td>`).join('')}</tr>`).join('')}
+          ${rows.map(row => {
+            const hasCatch = !!row.species;
+            return `<tr>${orderedCols.map((c, i) => `<td${i === 0 && hasCatch ? ' class="has-catch-cell"' : ''} title="${escapeHtml(String(row[c.key] ?? ''))}">${escapeHtml(String(row[c.key] ?? ''))}</td>`).join('')}</tr>`;
+          }).join('')}
         </tbody>
       </table>
     </div>
   `;
+
   document.getElementById('exportCsvBtn').addEventListener('click', exportLogCsv);
+  document.getElementById('resetColumnsBtn').addEventListener('click', () => {
+    localStorage.removeItem('creel-log-column-order');
+    localStorage.removeItem('creel-log-column-widths');
+    renderLogTable(currentLogRows);
+  });
+
+  setupLogTableInteractions();
+}
+
+function setupLogTableInteractions() {
+  const table = document.getElementById('logTable');
+  if (!table) return;
+  let dragKey = null;
+  let resizing = false;
+
+  table.querySelectorAll('thead th').forEach(th => {
+    th.addEventListener('dragstart', e => {
+      if (resizing) { e.preventDefault(); return; }
+      dragKey = th.dataset.key;
+      e.dataTransfer.effectAllowed = 'move';
+      th.classList.add('dragging-col');
+    });
+    th.addEventListener('dragend', () => th.classList.remove('dragging-col'));
+    th.addEventListener('dragover', e => { e.preventDefault(); th.classList.add('drop-target'); });
+    th.addEventListener('dragleave', () => th.classList.remove('drop-target'));
+    th.addEventListener('drop', e => {
+      e.preventDefault();
+      th.classList.remove('drop-target');
+      const targetKey = th.dataset.key;
+      if (!dragKey || dragKey === targetKey) return;
+      const order = getLogColumnOrder();
+      const from = order.indexOf(dragKey);
+      const to = order.indexOf(targetKey);
+      if (from === -1 || to === -1) return;
+      order.splice(from, 1);
+      order.splice(to, 0, dragKey);
+      saveLogColumnOrder(order);
+      renderLogTable(currentLogRows);
+    });
+
+    const handle = th.querySelector('.col-resize-handle');
+    handle.addEventListener('mousedown', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      resizing = true;
+      const key = handle.dataset.key;
+      const col = table.querySelector(`col[data-key="${key}"]`);
+      const startX = e.clientX;
+      const startWidth = col.getBoundingClientRect().width;
+
+      function onMove(ev) {
+        const newWidth = Math.max(60, Math.round(startWidth + (ev.clientX - startX)));
+        col.style.width = newWidth + 'px';
+      }
+      function onUp() {
+        resizing = false;
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        const widths = getLogColumnWidths();
+        widths[key] = parseInt(col.style.width, 10);
+        saveLogColumnWidths(widths);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+  });
 }
 
 function csvEscape(value) {
@@ -695,8 +805,10 @@ function csvEscape(value) {
 }
 
 function exportLogCsv() {
-  const header = LOG_COLUMNS.map(c => csvEscape(c.label)).join(',');
-  const lines = currentLogRows.map(row => LOG_COLUMNS.map(c => csvEscape(row[c.key])).join(','));
+  const colsByKey = Object.fromEntries(LOG_COLUMNS.map(c => [c.key, c]));
+  const orderedCols = getLogColumnOrder().map(k => colsByKey[k]);
+  const header = orderedCols.map(c => csvEscape(c.label)).join(',');
+  const lines = currentLogRows.map(row => orderedCols.map(c => csvEscape(row[c.key])).join(','));
   const csv = [header, ...lines].join('\r\n');
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
