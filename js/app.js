@@ -249,11 +249,10 @@ function loadTrips(locId) {
       trips.forEach(trip => {
         const card = document.createElement('div');
         card.className = 'trip-card';
-        const when = trip.date ? new Date(trip.date) : null;
         card.innerHTML = `
           <div class="trip-card-head">
             <div>
-              <span class="trip-date">${when ? when.toLocaleString() : 'Undated trip'}</span>
+              <span class="trip-date">${formatTripTimeRange(trip)}</span>
               ${trip.moonPhase ? `<span class="trip-meta"> · ${trip.moonPhase}</span>` : ''}
               ${trip.hadMiss ? '<span class="miss-badge">Had a miss</span>' : ''}
             </div>
@@ -347,25 +346,44 @@ function showTripForm(locId, existingTrip) {
   const form = document.getElementById('tripForm');
   const heading = form.querySelector('h3');
   const submitBtn = form.querySelector('button[type="submit"]');
-  const dateInput = form.querySelector('[name="tripDate"]');
+  const startInput = form.querySelector('[name="tripStart"]');
+  const endInput = form.querySelector('[name="tripEnd"]');
   const moonOut = document.getElementById('tripMoonPhaseOut');
+  const durationOut = document.getElementById('tripDurationOut');
 
   if (isEdit) {
     heading.textContent = 'Edit trip';
     submitBtn.textContent = 'Save changes';
   }
 
-  const setDate = (ms) => {
-    const d = ms ? new Date(ms) : new Date();
+  const toLocalInputValue = (ms) => {
+    const d = new Date(ms);
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    dateInput.value = d.toISOString().slice(0, 16);
-    moonOut.textContent = moonPhaseName(new Date(dateInput.value));
+    return d.toISOString().slice(0, 16);
   };
-  setDate(isEdit ? existingTrip.date : null);
 
-  dateInput.addEventListener('change', () => {
-    moonOut.textContent = dateInput.value ? moonPhaseName(new Date(dateInput.value)) : '—';
-  });
+  if (isEdit && existingTrip.date) {
+    startInput.value = toLocalInputValue(existingTrip.date);
+    if (existingTrip.endDate) endInput.value = toLocalInputValue(existingTrip.endDate);
+  } else {
+    const now = Date.now();
+    startInput.value = toLocalInputValue(now);
+    endInput.value = toLocalInputValue(now + 2 * 60 * 60 * 1000); // default 2-hour trip
+  }
+
+  function refreshComputedFields() {
+    moonOut.textContent = startInput.value ? moonPhaseName(new Date(startInput.value)) : '—';
+    if (startInput.value && endInput.value) {
+      const startMs = new Date(startInput.value).getTime();
+      const endMs = new Date(endInput.value).getTime();
+      durationOut.textContent = endMs > startMs ? formatDuration((endMs - startMs) / 60000) : '—';
+    } else {
+      durationOut.textContent = '—';
+    }
+  }
+  refreshComputedFields();
+  startInput.addEventListener('change', refreshComputedFields);
+  endInput.addEventListener('change', refreshComputedFields);
 
   if (isEdit) {
     const fields = ['waterTemp', 'clarity', 'waterNotes', 'airTemp', 'wind', 'sky', 'notes'];
@@ -384,12 +402,16 @@ function showTripForm(locId, existingTrip) {
     submitBtn.textContent = 'Saving…';
 
     const fd = new FormData(form);
-    const tripDate = new Date(fd.get('tripDate'));
+    const startDate = new Date(fd.get('tripStart'));
+    const endDate = fd.get('tripEnd') ? new Date(fd.get('tripEnd')) : null;
+    const durationMinutes = (endDate && endDate > startDate) ? (endDate.getTime() - startDate.getTime()) / 60000 : null;
 
     const tripData = {
       locationId: locId,
-      date: tripDate.getTime(),
-      moonPhase: moonPhaseName(tripDate),
+      date: startDate.getTime(),
+      endDate: endDate ? endDate.getTime() : null,
+      durationMinutes,
+      moonPhase: moonPhaseName(startDate),
       hadMiss: fd.get('hadMiss') === 'on',
       waterTemp: fd.get('waterTemp') ? Number(fd.get('waterTemp')) : null,
       clarity: fd.get('clarity') || '',
@@ -414,6 +436,35 @@ function showTripForm(locId, existingTrip) {
       submitBtn.textContent = isEdit ? 'Save changes' : 'Save trip';
     }
   });
+}
+
+function formatDuration(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = Math.round(totalMinutes % 60);
+  if (hours === 0) return `${mins}m`;
+  if (mins === 0) return `${hours}h`;
+  return `${hours}h ${mins}m`;
+}
+
+function formatTripTimeRange(trip) {
+  if (!trip.date) return 'Undated trip';
+  const start = new Date(trip.date);
+  const dateStr = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  const startTimeStr = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+  if (!trip.endDate) {
+    return `${dateStr}, ${startTimeStr}`;
+  }
+  const end = new Date(trip.endDate);
+  const endTimeStr = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const sameDay = start.toDateString() === end.toDateString();
+  const durationStr = trip.durationMinutes ? ` (${formatDuration(trip.durationMinutes)})` : '';
+
+  if (sameDay) {
+    return `${dateStr}, ${startTimeStr} – ${endTimeStr}${durationStr}`;
+  }
+  const endDateStr = end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${dateStr} ${startTimeStr} – ${endDateStr} ${endTimeStr}${durationStr}`;
 }
 
 /* ===================== Catch form (belongs to a trip) ===================== */

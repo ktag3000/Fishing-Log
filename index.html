@@ -75,11 +75,19 @@
       <h3>Log a trip</h3>
 
       <div class="field-row">
-        <label>Date & time
-          <input type="datetime-local" name="tripDate" required>
+        <label>Start time
+          <input type="datetime-local" name="tripStart" required>
         </label>
+        <label>End time
+          <input type="datetime-local" name="tripEnd">
+        </label>
+      </div>
+      <div class="field-row">
         <label class="readonly-field">Moon phase
           <span id="tripMoonPhaseOut">—</span>
+        </label>
+        <label class="readonly-field">Duration
+          <span id="tripDurationOut">—</span>
         </label>
       </div>
 
@@ -181,6 +189,6 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/app.js"></script>
   <!-- Google Maps loads app.js's initMap as its callback -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBWkcu65RynLwa8HXWYMu4aQcq1CaKI7qA&callback=initMap&loading=async" async defer></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=REPLACE_WITH_YOUR_GOOGLE_MAPS_API_KEY&callback=initMap&loading=async" async defer></script>
 </body>
 </html>
