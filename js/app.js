@@ -205,11 +205,10 @@ function loadCatches(locId) {
             ${c.weight ? ' · ' + c.weight + ' lb' : ''}
             ${c.moonPhase ? ' · ' + c.moonPhase : ''}
           </div>
-          ${c.lure ? `<div class="catch-meta">Lure: ${escapeHtml(c.lure)}</div>` : ''}
+          ${(c.lure || c.lureColor) ? `<div class="catch-meta">Lure: ${[c.lure, c.lureColor].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
           ${(c.waterTemp || c.clarity || c.waterNotes) ? `<div class="catch-meta">Water: ${[c.waterTemp ? c.waterTemp + '°F' : '', c.clarity, c.waterNotes].filter(Boolean).join(' · ')}</div>` : ''}
           ${(c.airTemp || c.wind || c.sky) ? `<div class="catch-meta">Weather: ${[c.airTemp ? c.airTemp + '°F' : '', c.wind, c.sky].filter(Boolean).join(' · ')}</div>` : ''}
           ${c.notes ? `<div class="catch-notes">${escapeHtml(c.notes)}</div>` : ''}
-          ${c.photoURL ? `<img src="${c.photoURL}" alt="Catch photo">` : ''}
           <button class="catch-delete" data-id="${doc.id}">Delete</button>
         `;
         div.querySelector('.catch-delete').addEventListener('click', () => deleteCatch(doc.id));
@@ -259,6 +258,7 @@ function showCatchForm(locId) {
       locationId: locId,
       species: fd.get('species') || '',
       lure: fd.get('lure') || '',
+      lureColor: fd.get('lureColor') || '',
       length: fd.get('length') ? Number(fd.get('length')) : null,
       weight: fd.get('weight') ? Number(fd.get('weight')) : null,
       waterTemp: fd.get('waterTemp') ? Number(fd.get('waterTemp')) : null,
@@ -274,16 +274,7 @@ function showCatchForm(locId) {
     };
 
     try {
-      const docRef = await db.collection('users').doc(currentUser.uid).collection('catches').add(catchData);
-
-      const photoFile = fd.get('photo');
-      if (photoFile && photoFile.size > 0) {
-        const path = `users/${currentUser.uid}/catches/${docRef.id}.jpg`;
-        const ref = storage.ref(path);
-        await ref.put(photoFile);
-        const url = await ref.getDownloadURL();
-        await docRef.update({ photoURL: url });
-      }
+      await db.collection('users').doc(currentUser.uid).collection('catches').add(catchData);
       openLocation(locId);
     } catch (err) {
       alert('Could not save catch: ' + err.message);
