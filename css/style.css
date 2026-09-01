@@ -246,6 +246,43 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 }
 .best-meta { font-size: 0.8rem; color: var(--slate); }
 
+/* ---------- Log / CSV export ---------- */
+.log-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+}
+.log-toolbar h2 { margin: 0; }
+.log-inner { max-width: 100%; }
+.log-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  margin-top: 1rem;
+  background: #fff;
+}
+.log-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+.log-table th,
+.log-table td {
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.log-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--sand-dim);
+  font-weight: 600;
+  color: var(--ink);
+}
+.log-table tbody tr:hover { background: var(--sand); }
+
 .layout {
   flex: 1;
   display: flex;

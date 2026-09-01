@@ -545,31 +545,173 @@ function showCatchForm(locId, tripId, existingCatch) {
   });
 }
 
-/* ===================== Nav: Map / Reports ===================== */
+/* ===================== Nav: Map / Reports / Log ===================== */
 document.getElementById('navMapBtn').addEventListener('click', () => switchView('map'));
 document.getElementById('navReportsBtn').addEventListener('click', () => switchView('reports'));
+document.getElementById('navLogBtn').addEventListener('click', () => switchView('log'));
 
 function switchView(view) {
-  const mapBtn = document.getElementById('navMapBtn');
-  const reportsBtn = document.getElementById('navReportsBtn');
-  const mapView = document.getElementById('mapView');
-  const reportsView = document.getElementById('reportsView');
-
-  if (view === 'reports') {
-    mapBtn.classList.remove('active');
-    reportsBtn.classList.add('active');
-    mapView.classList.add('hidden');
-    reportsView.classList.remove('hidden');
-    loadReports();
-  } else {
-    reportsBtn.classList.remove('active');
-    mapBtn.classList.add('active');
-    reportsView.classList.add('hidden');
-    mapView.classList.remove('hidden');
-  }
+  const views = {
+    map: { btn: 'navMapBtn', el: 'mapView' },
+    reports: { btn: 'navReportsBtn', el: 'reportsView' },
+    log: { btn: 'navLogBtn', el: 'logView' },
+  };
+  Object.entries(views).forEach(([key, { btn, el }]) => {
+    document.getElementById(btn).classList.toggle('active', key === view);
+    document.getElementById(el).classList.toggle('hidden', key !== view);
+  });
+  if (view === 'reports') loadReports();
+  if (view === 'log') loadLog();
 }
 
-/* ===================== Reports / Analytics ===================== */
+/* ===================== Log / CSV export ===================== */
+// Single source of truth for columns, shared by the on-screen table and the CSV
+// export so they never drift out of sync.
+const LOG_COLUMNS = [
+  { key: 'locationName', label: 'Location' },
+  { key: 'tripDate',     label: 'Trip date' },
+  { key: 'tripStart',    label: 'Start time' },
+  { key: 'tripEnd',      label: 'End time' },
+  { key: 'duration',     label: 'Duration' },
+  { key: 'moonPhase',    label: 'Moon phase' },
+  { key: 'hadMiss',      label: 'Had a miss' },
+  { key: 'waterTemp',    label: 'Water temp (°F)' },
+  { key: 'clarity',      label: 'Water clarity' },
+  { key: 'waterNotes',   label: 'Water notes' },
+  { key: 'airTemp',      label: 'Air temp (°F)' },
+  { key: 'wind',         label: 'Wind' },
+  { key: 'sky',          label: 'Sky' },
+  { key: 'tripNotes',    label: 'Trip notes' },
+  { key: 'species',      label: 'Species' },
+  { key: 'lure',         label: 'Lure' },
+  { key: 'lureColor',    label: 'Lure color' },
+  { key: 'length',       label: 'Length (in)' },
+  { key: 'weight',       label: 'Weight (lb)' },
+  { key: 'catchTime',    label: 'Catch time' },
+  { key: 'catchNotes',   label: 'Catch notes' },
+];
+
+let currentLogRows = [];
+
+async function loadLog() {
+  const el = document.getElementById('logContent');
+  el.innerHTML = '<p class="hint">Loading your full log…</p>';
+
+  const [tripsSnap, catchesSnap] = await Promise.all([
+    db.collection('users').doc(currentUser.uid).collection('trips').get(),
+    db.collection('users').doc(currentUser.uid).collection('catches').get(),
+  ]);
+
+  const trips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const catches = catchesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+  if (trips.length === 0) {
+    el.innerHTML = `
+      <div class="log-toolbar"><h2>Full log</h2></div>
+      <p class="hint">Log a trip and your full catch history will show up here, exportable as a CSV backup.</p>
+    `;
+    currentLogRows = [];
+    return;
+  }
+
+  const catchesByTrip = {};
+  catches.forEach(c => {
+    if (!catchesByTrip[c.tripId]) catchesByTrip[c.tripId] = [];
+    catchesByTrip[c.tripId].push(c);
+  });
+
+  const rows = [];
+  trips.forEach(trip => {
+    const locName = locations[trip.locationId] ? locations[trip.locationId].name : 'Unknown spot';
+    const tripCatches = (catchesByTrip[trip.id] || []).sort((a, b) => (a.caughtAt || 0) - (b.caughtAt || 0));
+    const tripDateObj = trip.date ? new Date(trip.date) : null;
+
+    const baseRow = {
+      locationName: locName,
+      tripDate: tripDateObj ? tripDateObj.toLocaleDateString() : '',
+      tripStart: tripDateObj ? tripDateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '',
+      tripEnd: trip.endDate ? new Date(trip.endDate).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '',
+      duration: trip.durationMinutes ? formatDuration(trip.durationMinutes) : '',
+      moonPhase: trip.moonPhase || '',
+      hadMiss: trip.hadMiss ? 'Yes' : 'No',
+      waterTemp: trip.waterTemp ?? '',
+      clarity: trip.clarity || '',
+      waterNotes: trip.waterNotes || '',
+      airTemp: trip.airTemp ?? '',
+      wind: trip.wind || '',
+      sky: trip.sky || '',
+      tripNotes: trip.notes || '',
+      _sortKey: trip.date || 0,
+    };
+
+    if (tripCatches.length === 0) {
+      rows.push({ ...baseRow, species: '', lure: '', lureColor: '', length: '', weight: '', catchTime: '', catchNotes: '' });
+    } else {
+      tripCatches.forEach(c => {
+        rows.push({
+          ...baseRow,
+          species: c.species || '',
+          lure: c.lure || '',
+          lureColor: c.lureColor || '',
+          length: c.length ?? '',
+          weight: c.weight ?? '',
+          catchTime: c.caughtAt ? new Date(c.caughtAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '',
+          catchNotes: c.notes || '',
+          _sortKey: c.caughtAt || trip.date || 0,
+        });
+      });
+    }
+  });
+
+  rows.sort((a, b) => a._sortKey - b._sortKey); // chronological, oldest first
+  currentLogRows = rows;
+  renderLogTable(rows);
+}
+
+function renderLogTable(rows) {
+  const el = document.getElementById('logContent');
+  el.innerHTML = `
+    <div class="log-toolbar">
+      <h2>Full log</h2>
+      <button id="exportCsvBtn" class="btn btn-primary">Export CSV</button>
+    </div>
+    <p class="hint">${rows.length} row${rows.length === 1 ? '' : 's'} · every trip and catch you've logged, in one place. Export doubles as a backup.</p>
+    <div class="log-table-wrap">
+      <table class="log-table">
+        <thead><tr>${LOG_COLUMNS.map(c => `<th>${escapeHtml(c.label)}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${rows.map(row => `<tr>${LOG_COLUMNS.map(c => `<td>${escapeHtml(String(row[c.key] ?? ''))}</td>`).join('')}</tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  document.getElementById('exportCsvBtn').addEventListener('click', exportLogCsv);
+}
+
+function csvEscape(value) {
+  const str = String(value ?? '');
+  if (/[",\n]/.test(str)) return '"' + str.replace(/"/g, '""') + '"';
+  return str;
+}
+
+function exportLogCsv() {
+  const header = LOG_COLUMNS.map(c => csvEscape(c.label)).join(',');
+  const lines = currentLogRows.map(row => LOG_COLUMNS.map(c => csvEscape(row[c.key])).join(','));
+  const csv = [header, ...lines].join('\r\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const today = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `creel-export-${today}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+
 async function loadReports() {
   const el = document.getElementById('reportsContent');
   el.innerHTML = '<p class="hint">Loading your stats…</p>';
