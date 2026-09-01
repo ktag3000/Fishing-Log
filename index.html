@@ -32,13 +32,17 @@
   <div id="app" class="app hidden">
     <header class="topbar">
       <p class="wordmark small">Creel</p>
+      <nav class="main-nav">
+        <button class="nav-tab active" id="navMapBtn" type="button">Map</button>
+        <button class="nav-tab" id="navReportsBtn" type="button">Reports</button>
+      </nav>
       <div class="topbar-right">
         <span id="userName" class="user-name"></span>
         <button id="signOutBtn" class="btn btn-ghost">Sign out</button>
       </div>
     </header>
 
-    <div class="layout">
+    <div class="layout" id="mapView">
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-head">
           <h2>Your spots</h2>
@@ -58,6 +62,10 @@
         <div id="drawerContent"></div>
       </section>
     </div>
+
+    <section class="reports-view hidden" id="reportsView">
+      <div class="reports-inner" id="reportsContent">Loading your stats…</div>
+    </section>
   </div>
 
   <!-- Catch form template -->
@@ -151,6 +159,6 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/app.js"></script>
   <!-- Google Maps loads app.js's initMap as its callback -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBWkcu65RynLwa8HXWYMu4aQcq1CaKI7qA&callback=initMap&loading=async" async defer></script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=REPLACE_WITH_YOUR_GOOGLE_MAPS_API_KEY&callback=initMap&loading=async" async defer></script>
 </body>
 </html>

@@ -388,3 +388,156 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+/* ===================== Nav: Map / Reports ===================== */
+document.getElementById('navMapBtn').addEventListener('click', () => switchView('map'));
+document.getElementById('navReportsBtn').addEventListener('click', () => switchView('reports'));
+
+function switchView(view) {
+  const mapBtn = document.getElementById('navMapBtn');
+  const reportsBtn = document.getElementById('navReportsBtn');
+  const mapView = document.getElementById('mapView');
+  const reportsView = document.getElementById('reportsView');
+
+  if (view === 'reports') {
+    mapBtn.classList.remove('active');
+    reportsBtn.classList.add('active');
+    mapView.classList.add('hidden');
+    reportsView.classList.remove('hidden');
+    loadReports();
+  } else {
+    reportsBtn.classList.remove('active');
+    mapBtn.classList.add('active');
+    reportsView.classList.add('hidden');
+    mapView.classList.remove('hidden');
+  }
+}
+
+/* ===================== Reports / Analytics ===================== */
+async function loadReports() {
+  const el = document.getElementById('reportsContent');
+  el.innerHTML = '<p class="hint">Loading your stats…</p>';
+
+  const snap = await db.collection('users').doc(currentUser.uid).collection('catches').get();
+  const catches = snap.docs.map(d => d.data());
+
+  if (catches.length === 0) {
+    el.innerHTML = '<h2>Reports</h2><p class="hint">Log a few catches and your stats will show up here.</p>';
+    return;
+  }
+
+  // ---- basic tallies ----
+  const speciesCounts = {};
+  const lureCounts = {};
+  const yearCounts = {};
+  let weightSum = 0, weightN = 0;
+  let lengthSum = 0, lengthN = 0;
+  let biggest = null; // by weight
+  let longest = null; // by length
+
+  catches.forEach(c => {
+    if (c.species) speciesCounts[c.species] = (speciesCounts[c.species] || 0) + 1;
+    if (c.lure) lureCounts[c.lure] = (lureCounts[c.lure] || 0) + 1;
+    if (c.caughtAt) {
+      const year = new Date(c.caughtAt).getFullYear();
+      yearCounts[year] = (yearCounts[year] || 0) + 1;
+    }
+    if (typeof c.weight === 'number') {
+      weightSum += c.weight; weightN++;
+      if (!biggest || c.weight > biggest.weight) biggest = c;
+    }
+    if (typeof c.length === 'number') {
+      lengthSum += c.length; lengthN++;
+      if (!longest || c.length > longest.length) longest = c;
+    }
+  });
+
+  const topSpecies = Object.entries(speciesCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const topLures = Object.entries(lureCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const topLocations = Object.values(locations)
+    .filter(l => (l.catchCount || 0) > 0)
+    .sort((a, b) => (b.catchCount || 0) - (a.catchCount || 0))
+    .slice(0, 5);
+  const years = Object.keys(yearCounts).sort();
+  const maxYearCount = Math.max(...Object.values(yearCounts), 1);
+
+  const avgWeight = weightN ? (weightSum / weightN).toFixed(2) : null;
+  const avgLength = lengthN ? (lengthSum / lengthN).toFixed(1) : null;
+
+  const locName = id => (locations[id] ? locations[id].name : 'Unknown spot');
+  const fmtDate = ts => ts ? new Date(ts).toLocaleDateString() : '';
+
+  el.innerHTML = `
+    <h2>Reports</h2>
+
+    <div class="stat-cards">
+      <div class="stat-card"><span class="stat-num">${catches.length}</span><span class="stat-label">Total catches</span></div>
+      <div class="stat-card"><span class="stat-num">${Object.keys(speciesCounts).length}</span><span class="stat-label">Species logged</span></div>
+      <div class="stat-card"><span class="stat-num">${Object.keys(locations).length}</span><span class="stat-label">Spots fished</span></div>
+      <div class="stat-card"><span class="stat-num">${avgWeight ?? '—'}</span><span class="stat-label">Avg weight (lb)</span></div>
+      <div class="stat-card"><span class="stat-num">${avgLength ?? '—'}</span><span class="stat-label">Avg length (in)</span></div>
+    </div>
+
+    ${years.length ? `
+    <h3>Catches by year</h3>
+    <div class="year-chart">
+      ${years.map(y => `
+        <div class="year-bar-col">
+          <div class="year-bar" style="height:${Math.max((yearCounts[y] / maxYearCount) * 100, 6)}%"></div>
+          <span class="year-bar-count">${yearCounts[y]}</span>
+          <span class="year-bar-label">${y}</span>
+        </div>
+      `).join('')}
+    </div>` : ''}
+
+    <div class="report-cols">
+      <div class="report-col">
+        <h3>Top species</h3>
+        ${renderBarList(topSpecies)}
+      </div>
+      <div class="report-col">
+        <h3>Top lures</h3>
+        ${topLures.length ? renderBarList(topLures) : '<p class="hint">No lures logged yet.</p>'}
+      </div>
+      <div class="report-col">
+        <h3>Top spots</h3>
+        ${topLocations.length ? renderBarList(topLocations.map(l => [l.name, l.catchCount || 0])) : '<p class="hint">No catches logged yet.</p>'}
+      </div>
+    </div>
+
+    <h3>Personal bests</h3>
+    <div class="best-cards">
+      ${biggest ? `
+        <div class="best-card">
+          <span class="best-label">Heaviest catch</span>
+          <span class="best-value">${biggest.weight} lb</span>
+          <span class="best-meta">${escapeHtml(biggest.species || 'Unknown species')} · ${locName(biggest.locationId)} · ${fmtDate(biggest.caughtAt)}</span>
+        </div>` : ''}
+      ${longest ? `
+        <div class="best-card">
+          <span class="best-label">Longest catch</span>
+          <span class="best-value">${longest.length}"</span>
+          <span class="best-meta">${escapeHtml(longest.species || 'Unknown species')} · ${locName(longest.locationId)} · ${fmtDate(longest.caughtAt)}</span>
+        </div>` : ''}
+      ${!biggest && !longest ? '<p class="hint">Log a weight or length to see your personal bests here.</p>' : ''}
+    </div>
+  `;
+}
+
+function renderBarList(entries) {
+  if (!entries.length) return '<p class="hint">Nothing logged yet.</p>';
+  const max = Math.max(...entries.map(e => e[1]), 1);
+  return `
+    <ul class="bar-list">
+      ${entries.map(([label, count]) => `
+        <li>
+          <div class="bar-list-row">
+            <span class="bar-list-label">${escapeHtml(String(label))}</span>
+            <span class="bar-list-count">${count}</span>
+          </div>
+          <div class="bar-list-track"><div class="bar-list-fill" style="width:${(count / max) * 100}%"></div></div>
+        </li>
+      `).join('')}
+    </ul>
+  `;
+}
