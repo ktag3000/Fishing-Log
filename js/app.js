@@ -69,15 +69,40 @@ function loadLocations() {
     });
 }
 
+// Catch-count tiers: how a spot's marker (and sidebar badge) is colored based on
+// how many catches have been logged there. Edit the thresholds/colors here.
+const CATCH_TIERS = [
+  { min: 0,  max: 0,        color: '#9AA6A0', label: 'No catches yet' },
+  { min: 1,  max: 1,        color: '#5B9E7A', label: '1 catch' },
+  { min: 2,  max: 5,        color: '#4A5D3A', label: '2–5 catches' },
+  { min: 6,  max: 10,       color: '#C9622D', label: '6–10 catches' },
+  { min: 11, max: Infinity, color: '#D4A017', label: '11+ catches' },
+];
+
+function tierForCount(count) {
+  return CATCH_TIERS.find(t => count >= t.min && count <= t.max) || CATCH_TIERS[0];
+}
+
+function renderTierLegend() {
+  const el = document.getElementById('tierLegend');
+  if (!el) return;
+  el.innerHTML = CATCH_TIERS.map(t => `
+    <li><span class="tier-dot" style="background:${t.color}"></span>${t.label}</li>
+  `).join('');
+}
+renderTierLegend();
+
 function addLocationMarker(id, data) {
+  const count = data.catchCount || 0;
+  const tier = tierForCount(count);
   const marker = new google.maps.Marker({
     position: { lat: data.lat, lng: data.lng },
     map,
-    title: data.name,
+    title: `${data.name} — ${tier.label}`,
     icon: {
       path: google.maps.SymbolPath.CIRCLE,
-      scale: 8,
-      fillColor: '#C9622D',
+      scale: 8 + Math.min(count, 11) * 0.15, // pins grow slightly with more catches
+      fillColor: tier.color,
       fillOpacity: 1,
       strokeColor: '#0F2A3D',
       strokeWeight: 1.5,
@@ -91,8 +116,13 @@ function renderSidebar() {
   const list = document.getElementById('locationList');
   list.innerHTML = '';
   Object.values(locations).forEach(loc => {
+    const count = loc.catchCount || 0;
+    const tier = tierForCount(count);
     const li = document.createElement('li');
-    li.textContent = loc.name;
+    li.innerHTML = `
+      <span>${escapeHtml(loc.name)}</span>
+      <span class="count" style="background:${tier.color}; color:#fff;">${count}</span>
+    `;
     li.addEventListener('click', () => {
       map.panTo({ lat: loc.lat, lng: loc.lng });
       map.setZoom(13);
@@ -133,6 +163,7 @@ function promptNewLocation(lat, lng) {
       name,
       lat: pendingPinLatLng.lat,
       lng: pendingPinLatLng.lng,
+      catchCount: 0,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     closeDrawer();
@@ -215,15 +246,28 @@ function loadCatches(locId) {
           </div>
         `;
         div.querySelector('.catch-edit').addEventListener('click', () => showCatchForm(locId, { id: doc.id, ...c }));
-        div.querySelector('.catch-delete').addEventListener('click', () => deleteCatch(doc.id));
+        div.querySelector('.catch-delete').addEventListener('click', () => deleteCatch(doc.id, locId));
         listEl.appendChild(div);
       });
+
+      // Self-heal: keep the location's stored catchCount in sync with reality.
+      // Covers spots created before catchCount existed, or any drift.
+      const actualCount = snap.size;
+      const loc = locations[locId];
+      if (loc && (loc.catchCount || 0) !== actualCount) {
+        db.collection('users').doc(currentUser.uid).collection('locations').doc(locId)
+          .update({ catchCount: actualCount })
+          .catch(() => {/* best effort */});
+      }
     });
 }
 
-async function deleteCatch(catchId) {
+async function deleteCatch(catchId, locId) {
   if (!confirm('Delete this catch?')) return;
   await db.collection('users').doc(currentUser.uid).collection('catches').doc(catchId).delete();
+  await db.collection('users').doc(currentUser.uid).collection('locations').doc(locId).update({
+    catchCount: firebase.firestore.FieldValue.increment(-1),
+  });
 }
 
 /* ===================== Catch form ===================== */
@@ -308,6 +352,9 @@ function showCatchForm(locId, existingCatch) {
       } else {
         catchData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         await db.collection('users').doc(currentUser.uid).collection('catches').add(catchData);
+        await db.collection('users').doc(currentUser.uid).collection('locations').doc(locId).update({
+          catchCount: firebase.firestore.FieldValue.increment(1),
+        });
       }
       openLocation(locId);
     } catch (err) {
