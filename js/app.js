@@ -734,6 +734,8 @@ function renderLogTable(rows) {
       <div class="log-toolbar-actions">
         <button id="wrapTextBtn" class="btn btn-ghost btn-small">${getLogWrapText() ? 'Unwrap text' : 'Wrap text'}</button>
         <button id="resetColumnsBtn" class="btn btn-ghost btn-small">Reset columns</button>
+        <button id="importCsvBtn" class="btn btn-ghost btn-small">Import CSV</button>
+        <input type="file" id="importCsvInput" accept=".csv" class="hidden">
         <button id="exportCsvBtn" class="btn btn-primary">Export CSV</button>
       </div>
     </div>
@@ -764,6 +766,8 @@ function renderLogTable(rows) {
   `;
 
   document.getElementById('exportCsvBtn').addEventListener('click', exportLogCsv);
+  document.getElementById('importCsvBtn').addEventListener('click', () => document.getElementById('importCsvInput').click());
+  document.getElementById('importCsvInput').addEventListener('change', handleImportFile);
   document.getElementById('resetColumnsBtn').addEventListener('click', () => {
     localStorage.removeItem('creel-log-column-order');
     localStorage.removeItem('creel-log-column-widths');
@@ -847,6 +851,163 @@ function csvEscape(value) {
   const str = String(value ?? '');
   if (/[",\n]/.test(str)) return '"' + str.replace(/"/g, '""') + '"';
   return str;
+}
+
+/* ---- CSV parsing (reverses csvEscape) ---- */
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        field += c;
+      }
+    } else {
+      if (c === '"') { inQuotes = true; }
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\r') { /* skip, \r\n handled by \n below */ }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else { field += c; }
+    }
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(cell => cell !== ''));
+}
+
+async function handleImportFile(e) {
+  const file = e.target.files[0];
+  e.target.value = ''; // allow re-selecting the same file later
+  if (!file) return;
+
+  const text = await file.text();
+  const raw = parseCsv(text);
+  if (raw.length < 2) { alert('That file has no data rows to import.'); return; }
+
+  const headerRow = raw[0].map(h => h.trim().toLowerCase());
+  const labelToKey = Object.fromEntries(LOG_COLUMNS.map(c => [c.label.toLowerCase(), c.key]));
+  const colIndexToKey = headerRow.map(h => labelToKey[h] || null);
+
+  if (!colIndexToKey.includes('locationName')) {
+    alert('Could not find a "Location" column in that file. Make sure the header row matches the Log tab\'s column names (an export from this app works directly).');
+    return;
+  }
+
+  const dataRows = raw.slice(1).map(cells => {
+    const obj = {};
+    colIndexToKey.forEach((key, i) => { if (key) obj[key] = (cells[i] || '').trim(); });
+    return obj;
+  });
+
+  // ---- match each row's location name to an existing spot ----
+  const nameToLocId = {};
+  Object.values(locations).forEach(l => { nameToLocId[l.name.trim().toLowerCase()] = l.id; });
+
+  const unmatchedNames = new Set();
+  const importableRows = [];
+  dataRows.forEach(row => {
+    const locId = nameToLocId[(row.locationName || '').trim().toLowerCase()];
+    if (!locId) {
+      if (row.locationName) unmatchedNames.add(row.locationName);
+      return;
+    }
+    row._locationId = locId;
+    importableRows.push(row);
+  });
+
+  if (importableRows.length === 0) {
+    alert('None of the rows matched an existing spot by name. Create the matching spots on the map first, then try again.\n\nUnmatched names found:\n' + [...unmatchedNames].join('\n'));
+    return;
+  }
+
+  // ---- group rows into trips: same location + trip date + start + end ----
+  const tripGroups = {};
+  importableRows.forEach(row => {
+    const key = [row._locationId, row.tripDate, row.tripStart, row.tripEnd].join('|');
+    if (!tripGroups[key]) tripGroups[key] = { meta: row, catches: [] };
+    if (row.species) tripGroups[key].catches.push(row);
+  });
+
+  const confirmMsg = `Ready to import:\n${Object.keys(tripGroups).length} trip(s), ${importableRows.filter(r => r.species).length} catch(es).` +
+    (unmatchedNames.size ? `\n\n${unmatchedNames.size} location name(s) didn't match anything and will be skipped:\n` + [...unmatchedNames].join('\n') : '') +
+    '\n\nContinue?';
+  if (!confirm(confirmMsg)) return;
+
+  let tripsCreated = 0, catchesCreated = 0;
+  const catchCountByLocation = {};
+
+  for (const key of Object.keys(tripGroups)) {
+    const { meta, catches } = tripGroups[key];
+    const tripStartDate = parseDateTime(meta.tripDate, meta.tripStart);
+    const tripEndDate = meta.tripEnd ? parseDateTime(meta.tripDate, meta.tripEnd) : null;
+    if (!tripStartDate) continue; // can't build a trip without a valid date
+
+    const durationMinutes = (tripEndDate && tripEndDate > tripStartDate)
+      ? (tripEndDate.getTime() - tripStartDate.getTime()) / 60000 : null;
+
+    const tripData = {
+      locationId: meta._locationId,
+      date: tripStartDate.getTime(),
+      endDate: tripEndDate ? tripEndDate.getTime() : null,
+      durationMinutes,
+      moonPhase: moonPhaseName(tripStartDate),
+      hadMiss: (meta.hadMiss || '').toLowerCase() === 'yes',
+      waterTemp: meta.waterTemp ? Number(meta.waterTemp) : null,
+      clarity: meta.clarity || '',
+      waterNotes: meta.waterNotes || '',
+      airTemp: meta.airTemp ? Number(meta.airTemp) : null,
+      wind: meta.wind || '',
+      sky: meta.sky || '',
+      notes: meta.tripNotes || '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+
+    const tripRef = await db.collection('users').doc(currentUser.uid).collection('trips').add(tripData);
+    tripsCreated++;
+
+    for (const c of catches) {
+      const catchTime = c.catchTime ? parseDateTime(meta.tripDate, c.catchTime) : tripStartDate;
+      await db.collection('users').doc(currentUser.uid).collection('catches').add({
+        locationId: meta._locationId,
+        tripId: tripRef.id,
+        species: c.species || '',
+        lure: c.lure || '',
+        lureColor: c.lureColor || '',
+        length: c.length ? Number(c.length) : null,
+        weight: c.weight ? Number(c.weight) : null,
+        distanceFromShore: c.distanceFromShore ? Number(c.distanceFromShore) : null,
+        caughtAt: (catchTime || tripStartDate).getTime(),
+        notes: c.catchNotes || '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      catchesCreated++;
+      catchCountByLocation[meta._locationId] = (catchCountByLocation[meta._locationId] || 0) + 1;
+    }
+  }
+
+  for (const locId of Object.keys(catchCountByLocation)) {
+    await db.collection('users').doc(currentUser.uid).collection('locations').doc(locId).update({
+      catchCount: firebase.firestore.FieldValue.increment(catchCountByLocation[locId]),
+    });
+  }
+
+  alert(`Import complete: ${tripsCreated} trip(s) and ${catchesCreated} catch(es) added.` +
+    (unmatchedNames.size ? `\n\n${unmatchedNames.size} location name(s) were skipped (no matching spot):\n` + [...unmatchedNames].join('\n') : ''));
+  loadLog();
+}
+
+// Parses a "9/2/2026" + "6:00 AM" style pair (as produced by our own CSV export)
+// back into a Date. Returns null if it can't make sense of the input.
+function parseDateTime(dateStr, timeStr) {
+  if (!dateStr) return null;
+  const combined = timeStr ? `${dateStr} ${timeStr}` : dateStr;
+  const d = new Date(combined);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 function exportLogCsv() {
