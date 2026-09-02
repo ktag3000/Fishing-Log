@@ -569,6 +569,7 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   margin-top: 0.4rem;
 }
 .catch-edit,
+.catch-clone,
 .catch-delete {
   background: none;
   border: none;
@@ -578,6 +579,7 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   padding: 0.3rem 0;
 }
 .catch-edit:hover,
+.catch-clone:hover,
 .catch-delete:hover { color: var(--ink); }
 
 .section-label {

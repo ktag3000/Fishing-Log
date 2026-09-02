@@ -353,10 +353,12 @@ function loadCatchesForTrip(tripId, locId) {
           ${c.notes ? `<div class="catch-notes">${escapeHtml(c.notes)}</div>` : ''}
           <div class="catch-actions">
             <button class="catch-edit" data-id="${c.id}">Edit</button>
+            <button class="catch-clone" data-id="${c.id}">Clone</button>
             <button class="catch-delete" data-id="${c.id}">Delete</button>
           </div>
         `;
         div.querySelector('.catch-edit').addEventListener('click', () => showCatchForm(locId, tripId, c));
+        div.querySelector('.catch-clone').addEventListener('click', () => showCatchForm(locId, tripId, c, { clone: true }));
         div.querySelector('.catch-delete').addEventListener('click', () => deleteCatch(c.id, locId));
         el.appendChild(div);
       });
@@ -506,8 +508,9 @@ async function deleteCatch(catchId, locId) {
   });
 }
 
-function showCatchForm(locId, tripId, existingCatch) {
-  const isEdit = !!existingCatch;
+function showCatchForm(locId, tripId, existingCatch, options = {}) {
+  const isClone = !!options.clone;
+  const isEdit = !!existingCatch && !isClone;
   const drawer = document.getElementById('drawer');
   const content = document.getElementById('drawerContent');
   const tpl = document.getElementById('catchFormTemplate').content.cloneNode(true);
@@ -522,6 +525,12 @@ function showCatchForm(locId, tripId, existingCatch) {
   if (isEdit) {
     heading.textContent = 'Edit catch';
     submitBtn.textContent = 'Save changes';
+  } else if (isClone) {
+    heading.textContent = 'Clone catch';
+    submitBtn.textContent = 'Save catch';
+  }
+
+  if (existingCatch) {
     const fields = ['species', 'lure', 'lureColor', 'length', 'weight', 'distanceFromShore', 'notes'];
     fields.forEach(name => {
       const el = form.querySelector(`[name="${name}"]`);
@@ -554,7 +563,7 @@ function showCatchForm(locId, tripId, existingCatch) {
       if (isEdit) {
         await db.collection('users').doc(currentUser.uid).collection('catches').doc(existingCatch.id).update(catchData);
       } else {
-        // new catches default to the trip's date/time for caughtAt
+        // new catches (including clones) default to the trip's date/time for caughtAt
         let caughtAtMs = Date.now();
         try {
           const tripDoc = await db.collection('users').doc(currentUser.uid).collection('trips').doc(tripId).get();
