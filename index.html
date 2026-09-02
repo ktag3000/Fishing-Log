@@ -14,10 +14,25 @@
   <!-- Signed-out view -->
   <div id="gate" class="gate">
     <div class="gate-contours" aria-hidden="true">
-      <svg viewBox="0 0 600 400" preserveAspectRatio="none">
-        <path d="M-20,300 C100,260 180,340 300,300 C420,260 500,320 620,280" />
-        <path d="M-20,340 C120,300 200,370 320,330 C440,290 520,350 620,320" />
-        <path d="M-20,220 C90,180 190,250 300,210 C410,170 500,230 620,190" />
+      <svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+        <g fill="none" stroke="#1E4560" stroke-width="1.5">
+          <path d="M950 120 C1120 160 1150 320 1080 460 C1010 600 800 640 680 560 C560 480 560 320 660 220 C740 140 850 100 950 120 Z"/>
+          <path d="M940 170 C1060 200 1085 320 1030 420 C975 520 820 545 730 480 C645 420 645 310 715 240 C775 185 855 155 940 170 Z"/>
+          <path d="M930 220 C1010 240 1025 320 990 385 C950 450 850 465 790 420 C735 380 735 305 785 260 C825 225 880 210 930 220 Z"/>
+          <path d="M915 265 C965 278 972 320 950 355 C925 392 865 400 828 372 C795 348 795 305 826 280 C852 262 888 258 915 265 Z"/>
+        </g>
+        <g fill="#C9622D">
+          <path d="M780 300 q22 -16 44 0 q-10 8 -22 8 q-12 0 -22 -8z"/>
+          <path d="M824 300 l12 -9 v18 z"/>
+        </g>
+        <g fill="#EFE7D6" opacity="0.85">
+          <path d="M870 400 q18 -13 36 0 q-8 6 -18 6 q-10 0 -18 -6z"/>
+          <path d="M906 400 l10 -7 v14 z"/>
+        </g>
+        <g fill="#83A9C4" opacity="0.75">
+          <path d="M700 480 q16 -12 32 0 q-7 6 -16 6 q-9 0 -16 -6z"/>
+          <path d="M732 480 l9 -6 v12 z"/>
+        </g>
       </svg>
     </div>
     <div class="gate-card">
@@ -124,24 +139,6 @@
         Had a miss (bite/strike, no catch)
       </label>
 
-      <p class="section-label">Water conditions</p>
-      <div class="field-row">
-        <label>Water temp (°F)
-          <input type="number" step="0.1" name="waterTemp">
-        </label>
-        <label>Clarity
-          <select name="clarity">
-            <option value="">—</option>
-            <option>Clear</option>
-            <option>Stained</option>
-            <option>Muddy</option>
-          </select>
-        </label>
-      </div>
-      <label class="full">Current / structure notes
-        <input type="text" name="waterNotes" placeholder="Slow current, fishing near submerged timber">
-      </label>
-
       <p class="section-label">Weather</p>
       <div class="field-row">
         <label>Air temp (°F)
@@ -159,6 +156,24 @@
           <option>Overcast</option>
           <option>Rain</option>
         </select>
+      </label>
+
+      <p class="section-label">Water conditions</p>
+      <div class="field-row">
+        <label>Water temp (°F)
+          <input type="number" step="0.1" name="waterTemp">
+        </label>
+        <label>Clarity
+          <select name="clarity">
+            <option value="">—</option>
+            <option>Clear</option>
+            <option>Stained</option>
+            <option>Muddy</option>
+          </select>
+        </label>
+      </div>
+      <label class="full">Current / structure notes
+        <input type="text" name="waterNotes" placeholder="Slow current, fishing near submerged timber">
       </label>
 
       <label class="full">Trip notes
@@ -195,6 +210,9 @@
         </label>
         <label>Weight (lb)
           <input type="number" step="0.01" name="weight" placeholder="2.3">
+        </label>
+        <label>Distance from shore (ft)
+          <input type="number" step="1" name="distanceFromShore" placeholder="20">
         </label>
       </div>
 

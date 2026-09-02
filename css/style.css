@@ -165,14 +165,9 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 .gate-contours {
   position: absolute;
   inset: 0;
-  opacity: 0.35;
+  opacity: 0.9;
 }
 .gate-contours svg { width: 100%; height: 100%; }
-.gate-contours path {
-  fill: none;
-  stroke: #1E4560;
-  stroke-width: 1.5;
-}
 .gate-card {
   position: relative;
   z-index: 1;
@@ -390,6 +385,14 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.log-table.wrap-text th,
+.log-table.wrap-text td {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+  vertical-align: top;
 }
 .log-table thead th {
   position: sticky;

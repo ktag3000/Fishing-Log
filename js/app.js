@@ -143,7 +143,8 @@ function addLocationMarker(id, data) {
 function renderSidebar() {
   const list = document.getElementById('locationList');
   list.innerHTML = '';
-  Object.values(locations).forEach(loc => {
+  const sortedLocations = Object.values(locations).sort((a, b) => a.name.localeCompare(b.name));
+  sortedLocations.forEach(loc => {
     const count = loc.catchCount || 0;
     const tier = tierForCount(count);
     const li = document.createElement('li');
@@ -289,8 +290,8 @@ function loadTrips(locId) {
               <button class="link-btn trip-delete">Delete</button>
             </div>
           </div>
-          ${(trip.waterTemp || trip.clarity || trip.waterNotes) ? `<div class="catch-meta">Water: ${[trip.waterTemp ? trip.waterTemp + '°F' : '', trip.clarity, trip.waterNotes].filter(Boolean).join(' · ')}</div>` : ''}
           ${(trip.airTemp || trip.wind || trip.sky) ? `<div class="catch-meta">Weather: ${[trip.airTemp ? trip.airTemp + '°F' : '', trip.wind, trip.sky].filter(Boolean).join(' · ')}</div>` : ''}
+          ${(trip.waterTemp || trip.clarity || trip.waterNotes) ? `<div class="catch-meta">Water: ${[trip.waterTemp ? trip.waterTemp + '°F' : '', trip.clarity, trip.waterNotes].filter(Boolean).join(' · ')}</div>` : ''}
           ${trip.notes ? `<div class="catch-notes">${escapeHtml(trip.notes)}</div>` : ''}
           <div class="trip-catches" id="trip-catches-${trip.id}">Loading catches…</div>
           <button class="btn btn-ghost btn-small add-catch-btn">+ Add a catch</button>
@@ -346,6 +347,7 @@ function loadCatchesForTrip(tripId, locId) {
             ${when ? when.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
             ${c.length ? ' · ' + c.length + '"' : ''}
             ${c.weight ? ' · ' + c.weight + ' lb' : ''}
+            ${c.distanceFromShore ? ' · ' + c.distanceFromShore + ' ft from shore' : ''}
           </div>
           ${(c.lure || c.lureColor) ? `<div class="catch-meta">Lure: ${[c.lure, c.lureColor].filter(Boolean).map(escapeHtml).join(' · ')}</div>` : ''}
           ${c.notes ? `<div class="catch-notes">${escapeHtml(c.notes)}</div>` : ''}
@@ -520,7 +522,7 @@ function showCatchForm(locId, tripId, existingCatch) {
   if (isEdit) {
     heading.textContent = 'Edit catch';
     submitBtn.textContent = 'Save changes';
-    const fields = ['species', 'lure', 'lureColor', 'length', 'weight', 'notes'];
+    const fields = ['species', 'lure', 'lureColor', 'length', 'weight', 'distanceFromShore', 'notes'];
     fields.forEach(name => {
       const el = form.querySelector(`[name="${name}"]`);
       if (el && existingCatch[name] !== undefined && existingCatch[name] !== null) el.value = existingCatch[name];
@@ -543,6 +545,7 @@ function showCatchForm(locId, tripId, existingCatch) {
       lure: fd.get('lure') || '',
       lureColor: fd.get('lureColor') || '',
       length: fd.get('length') ? Number(fd.get('length')) : null,
+      distanceFromShore: fd.get('distanceFromShore') ? Number(fd.get('distanceFromShore')) : null,
       weight: fd.get('weight') ? Number(fd.get('weight')) : null,
       notes: fd.get('notes') || '',
     };
@@ -603,18 +606,19 @@ const LOG_COLUMNS = [
   { key: 'duration',     label: 'Duration',           width: 90 },
   { key: 'moonPhase',    label: 'Moon phase',         width: 130 },
   { key: 'hadMiss',      label: 'Had a miss',         width: 100 },
-  { key: 'waterTemp',    label: 'Water temp (°F)',    width: 120 },
-  { key: 'clarity',      label: 'Water clarity',      width: 110 },
-  { key: 'waterNotes',   label: 'Water notes',        width: 200 },
   { key: 'airTemp',      label: 'Air temp (°F)',      width: 110 },
   { key: 'wind',         label: 'Wind',                width: 110 },
   { key: 'sky',          label: 'Sky',                 width: 120 },
+  { key: 'waterTemp',    label: 'Water temp (°F)',    width: 120 },
+  { key: 'clarity',      label: 'Water clarity',      width: 110 },
+  { key: 'waterNotes',   label: 'Water notes',        width: 200 },
   { key: 'tripNotes',    label: 'Trip notes',         width: 200 },
   { key: 'species',      label: 'Species',             width: 140 },
   { key: 'lure',         label: 'Lure',                width: 130 },
   { key: 'lureColor',    label: 'Lure color',         width: 120 },
   { key: 'length',       label: 'Length (in)',        width: 100 },
   { key: 'weight',       label: 'Weight (lb)',        width: 100 },
+  { key: 'distanceFromShore', label: 'Distance from shore (ft)', width: 160 },
   { key: 'catchTime',    label: 'Catch time',         width: 100 },
   { key: 'catchNotes',   label: 'Catch notes',        width: 200 },
 ];
@@ -673,7 +677,7 @@ async function loadLog() {
     };
 
     if (tripCatches.length === 0) {
-      rows.push({ ...baseRow, species: '', lure: '', lureColor: '', length: '', weight: '', catchTime: '', catchNotes: '' });
+      rows.push({ ...baseRow, species: '', lure: '', lureColor: '', length: '', weight: '', distanceFromShore: '', catchTime: '', catchNotes: '' });
     } else {
       tripCatches.forEach(c => {
         rows.push({
@@ -683,6 +687,7 @@ async function loadLog() {
           lureColor: c.lureColor || '',
           length: c.length ?? '',
           weight: c.weight ?? '',
+          distanceFromShore: c.distanceFromShore ?? '',
           catchTime: c.caughtAt ? new Date(c.caughtAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '',
           catchNotes: c.notes || '',
           _sortKey: c.caughtAt || trip.date || 0,
@@ -727,13 +732,14 @@ function renderLogTable(rows) {
     <div class="log-toolbar">
       <h2>Full log</h2>
       <div class="log-toolbar-actions">
+        <button id="wrapTextBtn" class="btn btn-ghost btn-small">${getLogWrapText() ? 'Unwrap text' : 'Wrap text'}</button>
         <button id="resetColumnsBtn" class="btn btn-ghost btn-small">Reset columns</button>
         <button id="exportCsvBtn" class="btn btn-primary">Export CSV</button>
       </div>
     </div>
     <p class="hint">${rows.length} row${rows.length === 1 ? '' : 's'} · drag a column header to reorder it, drag its right edge to resize. Rows with a catch are highlighted. Export doubles as a backup.</p>
     <div class="log-table-wrap">
-      <table class="log-table" id="logTable">
+      <table class="log-table${getLogWrapText() ? ' wrap-text' : ''}" id="logTable">
         <colgroup>
           ${orderedCols.map(c => `<col data-key="${c.key}" style="width:${widths[c.key] || c.width}px">`).join('')}
         </colgroup>
@@ -763,8 +769,19 @@ function renderLogTable(rows) {
     localStorage.removeItem('creel-log-column-widths');
     renderLogTable(currentLogRows);
   });
+  document.getElementById('wrapTextBtn').addEventListener('click', () => {
+    setLogWrapText(!getLogWrapText());
+    renderLogTable(currentLogRows);
+  });
 
   setupLogTableInteractions();
+}
+
+function getLogWrapText() {
+  return localStorage.getItem('creel-log-wrap-text') === 'true';
+}
+function setLogWrapText(value) {
+  localStorage.setItem('creel-log-wrap-text', value ? 'true' : 'false');
 }
 
 function setupLogTableInteractions() {
