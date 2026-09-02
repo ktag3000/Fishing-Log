@@ -58,6 +58,13 @@ body {
   background: #4A2E1E;
   color: #F0B98A;
 }
+#app.dark-theme .log-table td.has-catch-cell {
+  background: #2F5C3D;
+  color: #E8F5EA;
+}
+#app.dark-theme .log-table tbody tr:hover td.has-catch-cell {
+  background: #3A6E49;
+}
 
 button { font-family: inherit; cursor: pointer; }
 input, select, textarea { font-family: inherit; font-size: 0.95rem; }
@@ -201,7 +208,7 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 }
 
 /* ---------- App shell ---------- */
-.app { height: 100vh; display: flex; flex-direction: column; background: var(--sand); }
+.app { height: 100vh; display: flex; flex-direction: column; background: var(--sand); color: var(--ink); }
 .topbar {
   display: flex;
   align-items: center;
@@ -406,7 +413,7 @@ input, select, textarea { font-family: inherit; font-size: 0.95rem; }
 .log-table thead th.dragging-col { opacity: 0.4; }
 .log-table thead th.drop-target { box-shadow: inset 3px 0 0 var(--rust); }
 .log-table tbody tr:hover { background: var(--sand); }
-.log-table td.has-catch-cell { background: #B7E4C7; }
+.log-table td.has-catch-cell { background: #B7E4C7; color: #1B2420; }
 .log-table tbody tr:hover td.has-catch-cell { background: #A3D9B5; }
 
 .col-resize-handle {
